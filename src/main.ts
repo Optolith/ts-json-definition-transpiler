@@ -50,6 +50,14 @@ namespace JsonSchema {
     uniqueItems?: boolean
   }
 
+  export interface Tuple extends Annotated {
+    type: "array"
+    items: Definition[]
+    minItems: number
+    maxItems: number
+    additionalItems: false
+  }
+
   export interface Number extends Annotated {
     type: "number" | "integer"
     minimum?: number
@@ -103,6 +111,7 @@ namespace JsonSchema {
     | Union
     | Constant
     | Enum
+    | Tuple
 
   export type Definition =
     | StrictObject
@@ -116,6 +125,7 @@ namespace JsonSchema {
     | Union
     | Constant
     | Enum
+    | Tuple
 
   export interface Base extends Annotated {
     $schema: string
@@ -141,6 +151,11 @@ namespace JsonSchema {
 
   export const isArray = (x: Definition): x is Array =>
     (x as { type: any }).type === "array"
+    && !x.hasOwnProperty("additionalItems")
+
+  export const isTuple = (x: Definition): x is Tuple =>
+    (x as { type: any }).type === "array"
+    && x.hasOwnProperty("additionalItems")
 
   export const isNumber = (x: Definition): x is Number =>
     (x as { type: any }).type === "number"
@@ -353,6 +368,19 @@ namespace TypeScriptToJsonSchema {
     }
   }
 
+  const toJsonSchemaTuple = (node: ts.TupleTypeNode): JsonSchema.Definition => {
+    const jsDoc = JSDoc.ofNode(node.parent)
+
+    return {
+      ...JSDoc.toAnnotations(jsDoc),
+      type: "array",
+      items: node.elements.map(toJsonSchemaType),
+      minItems: node.elements.length,
+      maxItems: node.elements.length,
+      additionalItems: false,
+    }
+  }
+
   const toJsonSchemaLiteral = (node: ts.LiteralTypeNode): JsonSchema.Definition => {
     const jsDoc = JSDoc.ofNode(node.parent)
 
@@ -478,6 +506,9 @@ namespace TypeScriptToJsonSchema {
     }
     else if (ts.isArrayTypeNode(node)) {
       return toJsonSchemaArray(node)
+    }
+    else if (ts.isTupleTypeNode(node)) {
+      return toJsonSchemaTuple(node)
     }
     else if (ts.isLiteralTypeNode(node)) {
       return toJsonSchemaLiteral(node)
@@ -724,14 +755,6 @@ namespace JsonSchemaToMarkdown {
     }
   }
 
-  type ResultCollection = {
-    paragraphs: string[]
-    openDefinitions: {
-      propertyPath: string
-      definition: JsonSchema.Definition
-    }[]
-  }
-
   const arrayBody = (
     node: JsonSchema.Array,
     headingLevel: number,
@@ -749,6 +772,58 @@ namespace JsonSchemaToMarkdown {
       }),
       h(headingLevel + 1, "Items"),
       JsonSchema.isSimple(node.items) ? simpleBody(node.items) : printJson(node.items)
+    ]
+  }
+
+  const tupleBody = (
+    node: JsonSchema.Tuple,
+    headingLevel: number,
+    propertyPath: string
+  ): string[] => {
+    return [
+      LabelledList.create(node, {
+        title: false,
+        description: false,
+        type: { label: "Type", transform: () => "Tuple" },
+        items: false,
+        minItems: false,
+        maxItems: false,
+        additionalItems: false
+      }),
+      ...node.items.flatMap((childNode, index) => {
+        if (JsonSchema.isSimple(childNode)) {
+          return [
+            headerWithDescription(
+              h(headingLevel + 1, `Index ${index}`),
+              childNode.description
+            ),
+            simpleBody(childNode)
+          ]
+        }
+        else {
+          const id = (() => {
+            if (JsonSchema.isStrictObject(childNode)) {
+              const tagProperty = childNode.properties["tag"]
+              return  tagProperty && JsonSchema.isConstant(tagProperty)
+                ? tagProperty.const.toString()
+                : index.toFixed(0)
+            }
+            else {
+              return index.toFixed(0)
+            }
+          })()
+
+          const casePropertyPath = `${propertyPath}\`${index}`
+
+          return [
+            headerWithDescription(
+              h(headingLevel + 1, `Index ${index}`),
+              childNode.description
+            ),
+            ...definitionBody(childNode, headingLevel + 1, casePropertyPath)
+          ]
+        }
+      })
     ]
   }
 
@@ -870,6 +945,9 @@ namespace JsonSchemaToMarkdown {
     }
     else if (JsonSchema.isPatternDictionary(node)) {
       return patternDictionaryBody(node, headingLevel, propertyPath)
+    }
+    else if (JsonSchema.isTuple(node)) {
+      return tupleBody(node, headingLevel, propertyPath)
     }
     else {
       return []
