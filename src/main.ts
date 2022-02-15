@@ -76,6 +76,10 @@ namespace JsonSchema {
     const: string | number | boolean
   }
 
+  export interface Enum extends Annotated {
+    enum: (string | number)[]
+  }
+
   export interface Reference extends Annotated {
     $ref: string
   }
@@ -85,6 +89,7 @@ namespace JsonSchema {
     | String
     | Boolean
     | Constant
+    | Enum
     | Reference
 
   export type NonStrictObject =
@@ -97,6 +102,7 @@ namespace JsonSchema {
     | Reference
     | Union
     | Constant
+    | Enum
 
   export type Definition =
     | StrictObject
@@ -109,6 +115,7 @@ namespace JsonSchema {
     | Reference
     | Union
     | Constant
+    | Enum
 
   export interface Base extends Annotated {
     $schema: string
@@ -150,6 +157,9 @@ namespace JsonSchema {
 
   export const isConstant = (x: Definition): x is Constant =>
     x.hasOwnProperty("const")
+
+  export const isEnum = (x: Definition): x is Enum =>
+    x.hasOwnProperty("enum")
 
   export const isReference = (x: Definition): x is Reference =>
     x.hasOwnProperty("$ref")
@@ -420,12 +430,39 @@ namespace TypeScriptToJsonSchema {
     }
   }
 
+  const toJsonSchemaEnum = (node: ts.EnumDeclaration) => {
+    const jsDoc = JSDoc.ofNode(node)
+
+    return {
+      ...JSDoc.toAnnotations(jsDoc),
+      enum: node.members.flatMap((member): (string | number)[] => {
+        if (member.initializer) {
+          if (ts.isStringLiteral(member.initializer)) {
+            return [ member.initializer.text ]
+          }
+          else if (ts.isNumericLiteral(member.initializer)) {
+            return [ Number.parseFloat(member.initializer.text) ]
+          }
+          else {
+            return []
+          }
+        }
+        else {
+          return []
+        }
+      })
+    }
+  }
+
   const toJsonSchemaType = (node: ts.Node): JsonSchema.Definition => {
     if (ts.isTypeAliasDeclaration(node)) {
       return toJsonSchemaType(node.type)
     }
     else if (ts.isInterfaceDeclaration(node)) {
       return toJsonSchemaObject(node, JSDoc.ofNode(node))
+    }
+    else if (ts.isEnumDeclaration(node)) {
+      return toJsonSchemaEnum(node)
     }
     else if (ts.isTypeLiteralNode(node)) {
       return toJsonSchemaObject(node, JSDoc.ofNode(node.parent))
@@ -468,7 +505,7 @@ namespace TypeScriptToJsonSchema {
   }
 
   const getDefinitionName = (statement: ts.Node) => {
-    if (ts.isTypeAliasDeclaration(statement) || ts.isInterfaceDeclaration(statement)) {
+    if (ts.isTypeAliasDeclaration(statement) || ts.isInterfaceDeclaration(statement) || ts.isEnumDeclaration(statement)) {
       return statement.name.escapedText.toString()
     }
     else {
@@ -482,7 +519,11 @@ namespace TypeScriptToJsonSchema {
     const definitions = Object.fromEntries(
       file
         .statements
-        .filter(x => ts.isInterfaceDeclaration(x) || ts.isTypeAliasDeclaration(x))
+        .filter(node =>
+          ts.isInterfaceDeclaration(node)
+          || ts.isTypeAliasDeclaration(node)
+          || ts.isEnumDeclaration(node)
+        )
         .map(statement => [
           getDefinitionName(statement),
           toJsonSchemaType(statement)
@@ -663,6 +704,18 @@ namespace JsonSchemaToMarkdown {
 
             return a(id, `${external ? `${external}.md` : ""}#${id}`)
           }
+        },
+      })
+    }
+    else if (JsonSchema.isEnum(node)) {
+      return LabelledList.create(node, {
+        title: false,
+        description: false,
+        enum: {
+          label: "Possible values",
+          transform: values => values
+            .map(value => `\`${JSON.stringify(value)}\``)
+            .join(", ")
         },
       })
     }
