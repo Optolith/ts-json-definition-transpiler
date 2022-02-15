@@ -924,12 +924,18 @@ Usage:
 node -r ts-node/register/transpile-only createSchema.ts --tsdir "src/entity" --jsondir "json" --mddir "docs"`)
 }
 else {
-  const rootPaths = tsDir.split(/[\/\\]/)
+  const prepareArgumentPath = (path: string) =>
+    join(__dirname, "..", path.split(/[\/\\]/).join(sep))
+
+  const prepareArgumentPathSplit = (path: string) =>
+    prepareArgumentPath(path).split(sep)
+
+  const rootPaths = prepareArgumentPath(tsDir)
 
   const dirEntryToFilePath = (dirEntry: Dirent) =>
-    [...__dirname.split(sep), ...rootPaths, dirEntry.name].join("/")
+    join(rootPaths, dirEntry.name).split(sep).join("/")
 
-  const tsFiles = readdirSync(join(...rootPaths), { withFileTypes: true })
+  const tsFiles = readdirSync(rootPaths, { withFileTypes: true })
     .flatMap(dirEntry => {
       if (dirEntry.isFile() && extname(dirEntry.name) === ".ts") {
         return [dirEntryToFilePath(dirEntry)]
@@ -944,11 +950,11 @@ else {
   // KEEP, SIDE EFFECT: it fills the parent references of nodes
   program.getTypeChecker()
 
-  const jsonSchemaRoot = jsonSchemaDir.split(/[\/\\]/)
-  const markdownRoot = mdDir.split(/[\/\\]/)
+  const jsonSchemaRoot = prepareArgumentPathSplit(jsonSchemaDir)
+  const markdownRoot = prepareArgumentPathSplit(mdDir)
 
-  mkdirSync(join(...jsonSchemaRoot), { recursive: true })
-  mkdirSync(join(...markdownRoot), { recursive: true })
+  mkdirSync(jsonSchemaRoot.join(sep), { recursive: true })
+  mkdirSync(markdownRoot.join(sep), { recursive: true })
 
   program
     .getSourceFiles()
@@ -961,7 +967,7 @@ else {
       const schema = TypeScriptToJsonSchema.convertFile(file, schemaFilePath.join("/"))
       const docs = JsonSchemaToMarkdown.convertSchema(schema)
 
-      writeFileSync(join(...schemaFilePath), JSON.stringify(schema, undefined, 2))
-      writeFileSync(join(...markdownFilePath), docs)
+      writeFileSync(schemaFilePath.join(sep), JSON.stringify(schema, undefined, 2))
+      writeFileSync(markdownFilePath.join(sep), docs)
     })
 }
