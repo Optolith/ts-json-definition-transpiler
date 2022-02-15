@@ -3,7 +3,7 @@ import { basename, extname, join, sep } from "path"
 import * as ts from "typescript"
 
 namespace JsonSchema {
-  export type ConstraintKey = "minimum" | "maximum" | "minProperties" | "maxProperties" | "minLength" | "maxLength" | "format" | "minItems" | "maxItems" | "uniqueItems"
+  export type ConstraintKey = "minimum" | "maximum" | "minProperties" | "maxProperties" | "minLength" | "maxLength" | "format" | "minItems" | "maxItems" | "uniqueItems" | "pattern" | "format"
 
   export type ConstraintValueType = "integer" | "numeric" | "boolean"
 
@@ -60,6 +60,8 @@ namespace JsonSchema {
     type: "string"
     minLength?: number
     maxLength?: number
+    pattern?: number
+    format?: number
   }
 
   export interface Boolean extends Annotated {
@@ -169,7 +171,7 @@ namespace JsonSchema {
 
   export const constraintsByJsonSchemaType: { [K in ValueType]: ConstraintKey[] } = {
     number: ["minimum", "maximum"],
-    string: ["minLength", "maxLength", "format"],
+    string: ["minLength", "maxLength", "format", "pattern"],
     object: ["minProperties", "maxProperties"],
     array: ["minItems", "maxItems", "uniqueItems"],
   }
@@ -314,6 +316,13 @@ namespace TypeScriptToJsonSchema {
           ...JSDoc.toAnnotations(jsDoc),
           type: "string",
           ...JSDoc.toConstraints(jsDoc, "string")
+        }
+      }
+
+      case ts.SyntaxKind.BooleanKeyword: {
+        return {
+          ...JSDoc.toAnnotations(jsDoc),
+          type: "boolean"
         }
       }
 
@@ -625,6 +634,8 @@ namespace JsonSchemaToMarkdown {
         type: { label: "Type", transform: () => "String" },
         minLength: { label: "Minimum Length", transform: value => `\`${value}\`` },
         maxLength: { label: "Maximum Length", transform: value => `\`${value}\`` },
+        format: { label: "Format", transform: value => `\`${value}\`` },
+        pattern: { label: "Pattern", transform: value => `\`${value}\`` },
       })
     }
     else if (JsonSchema.isBoolean(node)) {
