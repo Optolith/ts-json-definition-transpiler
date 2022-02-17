@@ -248,7 +248,7 @@ const nodeToDefinition = (node: ChildNode): Definition => {
 
       return {
         ...toAnnotations(node.jsDoc),
-        $ref: `${externalFilePath}#/definitions/${node.name}`
+        $ref: `${externalFilePath}#/definitions/${[...node.parentGroups, node.name].join("/")}`
       }
     }
     case NodeKind.Token: {

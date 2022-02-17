@@ -1,19 +1,5 @@
 import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "./ast"
 
-const refToParts = (ref: string) => {
-  const groups = /^(?:(?<external>.+)\.schema\.json)?#\/definitions\/(?<id>\w+)$/.exec(ref)?.groups
-
-  if (groups && groups.id) {
-    return {
-      external: groups.external,
-      id: groups.id
-    }
-  }
-  else {
-    throw new Error(`Json Schema $ref "${ref}" has no id`);
-  }
-}
-
 const h = (level: number, text: string, anchor?: string) => {
   const safeLevel = level < 1 ? 1 : level > 6 ? 6 : level
   const anchorElement = anchor === undefined ? "" : ` <a name="${anchor}"></a>`
@@ -123,9 +109,9 @@ const simpleBody = (node: SimpleNode): string => {
         LabelledList.line(
           "Type",
           node,
-          ({ name, externalFilePath }) => a(
+          ({ name, parentGroups, externalFilePath }) => a(
             name,
-            `${externalFilePath ? `${externalFilePath}.md` : ""}#${name}`
+            `${externalFilePath ? `${externalFilePath}.md` : ""}#${[...parentGroups, name].join("/")}`
           )
         ),
       ])

@@ -24,13 +24,14 @@ Usage:
 node -r ts-node/register/transpile-only createSchema.ts --tsdir "src/entity" --jsondir "json" --mddir "docs"`)
 }
 else {
-  const prepareArgumentPath = (path: string) =>
-    join(__dirname, "..", path.split(/[\/\\]/).join(sep))
+  const prepareSplitCLIPath = (path: string) => path.split(/[\/\\]/)
+  const toAbsolutePath = (relativePath: string[]) =>
+    join(__dirname, "..", relativePath.join(sep)).split(sep)
+  const joinPath = (path: string[]) => path.join(sep)
+  const splitPath = (path: string) => path.split(sep)
+  const makeAbsolutePathSplit = (path: string) => toAbsolutePath(prepareSplitCLIPath(path))
 
-  const prepareArgumentPathSplit = (path: string) =>
-    prepareArgumentPath(path).split(sep)
-
-  const rootPaths = prepareArgumentPath(tsDir)
+  const rootPaths = joinPath(makeAbsolutePathSplit(tsDir))
 
   const dirEntryToFilePath = (dirEntry: Dirent) =>
     join(rootPaths, dirEntry.name).split(sep).join("/")
@@ -47,11 +48,11 @@ else {
 
   const program = ts.createProgram(tsFiles, { strict: true })
 
-  // KEEP, SIDE EFFECT: it fills the parent references of nodes
-  program.getTypeChecker()
+  // KEEP ALWAYS, SIDE EFFECT: it fills the parent references of nodes
+  const checker = program.getTypeChecker()
 
-  const jsonSchemaRoot = prepareArgumentPathSplit(jsonSchemaDir)
-  const markdownRoot = prepareArgumentPathSplit(mdDir)
+  const jsonSchemaRoot = makeAbsolutePathSplit(jsonSchemaDir)
+  const markdownRoot = makeAbsolutePathSplit(mdDir)
 
   mkdirSync(jsonSchemaRoot.join(sep), { recursive: true })
   mkdirSync(markdownRoot.join(sep), { recursive: true })
@@ -59,14 +60,18 @@ else {
   program
     .getSourceFiles()
     .filter(file => tsFiles.includes(file.fileName))
-    // .filter(file => file.fileName.includes("_PublicationRef.ts"))
     .forEach(file => {
-      const schemaFilePath = [...jsonSchemaRoot, `${basename(file.fileName, ".ts")}.schema.json`]
-      const markdownFilePath = [...markdownRoot, `${basename(file.fileName, ".ts")}.md`]
+      const base = basename(file.fileName, ".ts")
+      const schemaFilePath = [...jsonSchemaRoot, `${base}.schema.json`]
+      const schemaId = [
+        ...prepareSplitCLIPath(jsonSchemaDir).filter(part => part !== "." && part !== ".."),
+        `${base}.schema.json`
+      ].join("/")
+      const markdownFilePath = [...markdownRoot, `${base}.md`]
 
       try {
-        const ast = fileToAst(file)
-        const schema = astToJsonSchema(ast, schemaFilePath.join("/"))
+        const ast = fileToAst(file, checker)
+        const schema = astToJsonSchema(ast, schemaId)
         const docs = astToMarkdown(ast)
 
         writeFileSync(schemaFilePath.join(sep), JSON.stringify(schema, undefined, 2))

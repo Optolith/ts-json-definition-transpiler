@@ -152,6 +152,7 @@ export type ReferenceNode = {
   kind: NodeKind.Reference
   jsDoc?: JSDoc.Type
   name: string
+  parentGroups: string[]
   externalFilePath?: string
 }
 
@@ -217,34 +218,55 @@ type Statement =
 
 const statementIdentifier = (statement: Statement) => statement.name.text
 
+const hasNoTypeParameters = (node: ts.InterfaceDeclaration | ts.TypeAliasDeclaration) =>
+  node.typeParameters === undefined || node.typeParameters.length === 0
+
 const isStatement = (node: ts.Node): node is Statement =>
-  ts.isInterfaceDeclaration(node)
-  || ts.isTypeAliasDeclaration(node)
+  (ts.isInterfaceDeclaration(node) && hasNoTypeParameters(node))
+  || (ts.isTypeAliasDeclaration(node) && hasNoTypeParameters(node))
   || ts.isEnumDeclaration(node)
   || ts.isModuleDeclaration(node)
 
-const statementsToStatementDictionary = (node: ts.SourceFile | ts.ModuleBlock) =>
+const statementsToStatementDictionary = (node: ts.SourceFile | ts.ModuleBlock, checker: ts.TypeChecker, typeArguments: { [name: string]: ChildNode }) =>
   Object.fromEntries(
     node.statements
       .filter(isStatement)
       .map(statement => [
         statementIdentifier(statement),
-        nodeToAst(statement)
+        nodeToAst(statement, checker, typeArguments)
       ])
   )
+
+const parentModuleSymbol = (symbol: ts.Symbol, checker: ts.TypeChecker) => {
+  const block = symbol?.declarations?.[0]?.parent
+  return block && ts.isModuleBlock(block)
+    ? checker.getSymbolAtLocation(block.parent.name)
+    : undefined
+}
+
+const traverseAbsoluteParentModules = (accPath: string[], currentModule: ts.Symbol, checker: ts.TypeChecker): string[] => {
+  const parentModule = parentModuleSymbol(currentModule, checker)
+
+  if (parentModule) {
+    return traverseAbsoluteParentModules([...accPath, parentModule.name], parentModule, checker)
+  }
+  else {
+    return accPath
+  }
+}
 
 const propertyNameToString = (propertyName: ts.PropertyName): string =>
   ts.isComputedPropertyName(propertyName)
     ? propertyName.expression.getText()
     : propertyName.text
 
-const nodeToAst = (node: ts.Node): ChildNode => {
+const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [name: string]: ChildNode }): ChildNode => {
   if (ts.isModuleDeclaration(node)) {
     if (node.body && ts.isModuleBlock(node.body)) {
       return ({
         kind: NodeKind.Group,
         jsDoc: JSDoc.ofNode(node),
-        elements: statementsToStatementDictionary(node.body)
+        elements: statementsToStatementDictionary(node.body, checker, typeArguments)
       })
     }
     else {
@@ -252,7 +274,7 @@ const nodeToAst = (node: ts.Node): ChildNode => {
     }
   }
   else if (ts.isTypeAliasDeclaration(node)) {
-    return nodeToAst(node.type)
+    return nodeToAst(node.type, checker, typeArguments)
   }
   else if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node)) {
     const jsDoc = JSDoc.ofNode(ts.isInterfaceDeclaration(node) ? node : node.parent)
@@ -263,7 +285,7 @@ const nodeToAst = (node: ts.Node): ChildNode => {
       return {
         kind: NodeKind.Dictionary,
         jsDoc,
-        elements: nodeToAst(firstMember.type),
+        elements: nodeToAst(firstMember.type, checker, typeArguments),
         pattern: JSDoc.ofNode(firstMember)?.tags.patternProperties
       }
     }
@@ -280,7 +302,7 @@ const nodeToAst = (node: ts.Node): ChildNode => {
                   {
                     jsDoc: JSDoc.ofNode(member),
                     required: member.questionToken === undefined,
-                    value: nodeToAst(member.type!)
+                    value: nodeToAst(member.type!, checker, typeArguments)
                   }
                 ]
               ]
@@ -328,34 +350,80 @@ const nodeToAst = (node: ts.Node): ChildNode => {
   else if (ts.isTypeReferenceNode(node)) {
     const jsDoc = JSDoc.ofNode(node.parent)
 
-    const name = ts.isIdentifier(node.typeName)
-      ? node.typeName.escapedText.toString()
-      : node.typeName.right.escapedText.toString()
+    const symbol = checker.getSymbolAtLocation(node.typeName)
 
-    const importNodes = node.getSourceFile().statements.filter(ts.isImportDeclaration)
+    if (node.typeArguments && node.typeArguments.length > 0) {
+      if (ts.isTypeAliasDeclaration(node.parent)) {
+        const nodeWithTypeParameters = symbol?.declarations?.[0]!
 
-    const matchingImportNode = importNodes.find(importNode => {
-      const namedBindings = importNode.importClause?.namedBindings
+        const typeParameters = (() => {
+          if (ts.isTypeAliasDeclaration(nodeWithTypeParameters)) {
+            return nodeWithTypeParameters.typeParameters ?? []
+          }
+          else {
+            throw new Error(`resolving type parameters from referenced node of type "${ts.SyntaxKind[nodeWithTypeParameters.kind]}" is currently not supported`)
+          }
+        })()
 
-      if (namedBindings && ts.isNamedImports(namedBindings)) {
-        return namedBindings.elements.some(
-          namedBinding => namedBinding.name.escapedText === name
+        const newTypeArguments = node.typeArguments.map(
+          typeNode => nodeToAst(typeNode, checker, typeArguments)
         )
+
+        if (typeParameters.length !== newTypeArguments.length) {
+          throw new Error(`resolving type parameters failed due to a different number of arguments provided`)
+        }
+
+        const newTypeArgumentsMap = Object.fromEntries(
+          typeParameters.map(
+            (key, index) => [key.name.text, newTypeArguments[index]!]
+          )
+        )
+
+        return nodeToAst(nodeWithTypeParameters, checker, newTypeArgumentsMap)
       }
       else {
-        return false
+        throw new Error(`resolving type parameters from parent node of type "${ts.SyntaxKind[node.parent.kind]}" is currently not supported`)
       }
-    })
+    }
+    else {
+      const name = ts.isIdentifier(node.typeName)
+        ? node.typeName.escapedText.toString()
+        // node.typeName.left is recursive module name,
+        // such as "Test.Collection" in "Test.Collection.Plain", inside left the left is "Test"
+        : node.typeName.right.escapedText.toString()
 
-    const externalFilePath = matchingImportNode?.moduleSpecifier
-      .getText()
-      .replace(/^["'](.+)["']$/, "$1")
+      if (name in typeArguments) {
+        return typeArguments[name]!
+      }
 
-    return {
-      kind: NodeKind.Reference,
-      jsDoc,
-      name,
-      externalFilePath
+      const parentGroups = symbol ? traverseAbsoluteParentModules([], symbol, checker) : []
+
+      const importNodes = node.getSourceFile().statements.filter(ts.isImportDeclaration)
+
+      const matchingImportNode = importNodes.find(importNode => {
+        const namedBindings = importNode.importClause?.namedBindings
+
+        if (namedBindings && ts.isNamedImports(namedBindings)) {
+          return namedBindings.elements.some(
+            namedBinding => namedBinding.name.escapedText === name
+          )
+        }
+        else {
+          return false
+        }
+      })
+
+      const externalFilePath = matchingImportNode?.moduleSpecifier
+        .getText()
+        .replace(/^["'](.+)["']$/, "$1")
+
+      return {
+        kind: NodeKind.Reference,
+        jsDoc,
+        name,
+        parentGroups,
+        externalFilePath
+      }
     }
   }
   else if (ts.isEnumDeclaration(node)) {
@@ -398,7 +466,7 @@ const nodeToAst = (node: ts.Node): ChildNode => {
     return {
       kind: NodeKind.Array,
       jsDoc,
-      elements: nodeToAst(node.elementType)
+      elements: nodeToAst(node.elementType, checker, typeArguments)
     }
   }
   else if (ts.isUnionTypeNode(node)) {
@@ -407,7 +475,7 @@ const nodeToAst = (node: ts.Node): ChildNode => {
     return {
       kind: NodeKind.Union,
       jsDoc,
-      cases: node.types.map(nodeToAst)
+      cases: node.types.map(type => nodeToAst(type, checker, typeArguments))
     }
   }
   else if (ts.isLiteralTypeNode(node)) {
@@ -430,7 +498,7 @@ const nodeToAst = (node: ts.Node): ChildNode => {
     return {
       kind: NodeKind.Tuple,
       jsDoc,
-      elements: node.elements.map(nodeToAst)
+      elements: node.elements.map(type => nodeToAst(type, checker, typeArguments))
     }
   }
   else {
@@ -438,12 +506,12 @@ const nodeToAst = (node: ts.Node): ChildNode => {
   }
 }
 
-export const fileToAst = (file: ts.SourceFile): RootNode => {
+export const fileToAst = (file: ts.SourceFile, checker: ts.TypeChecker): RootNode => {
   const jsDoc = JSDoc.ofModule(file)
 
   return {
     kind: NodeKind.Main,
     jsDoc,
-    elements: statementsToStatementDictionary(file)
+    elements: statementsToStatementDictionary(file, checker, {})
   }
 }
