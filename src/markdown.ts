@@ -367,5 +367,5 @@ export const astToMarkdown = (file: RootNode): string => {
     docHeader(file, ref?.jsDoc),
     h(2, "Definitions"),
     ...definitions
-  ].join("\n\n")
+  ].join("\n\n") + "\n"
 }

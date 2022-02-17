@@ -294,3 +294,6 @@ export const astToJsonSchema = (file: RootNode, schemaFileName: string): JsonSch
     )
   }
 }
+
+export const jsonSchemaToFileContent = (schema: JsonSchema): string =>
+  `${JSON.stringify(schema, undefined, 2)}\n`

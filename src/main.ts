@@ -2,7 +2,7 @@ import { Dirent, mkdirSync, readdirSync, writeFileSync } from "fs"
 import { basename, extname, join, sep } from "path"
 import * as ts from "typescript"
 import { fileToAst } from "./ast"
-import { astToJsonSchema } from "./jsonSchema"
+import { astToJsonSchema, jsonSchemaToFileContent } from "./jsonSchema"
 import { astToMarkdown } from "./markdown"
 
 const getOptionValue = (name: string) => {
@@ -71,10 +71,10 @@ else {
 
       try {
         const ast = fileToAst(file, checker)
-        const schema = astToJsonSchema(ast, schemaId)
+        const schema = jsonSchemaToFileContent(astToJsonSchema(ast, schemaId))
         const docs = astToMarkdown(ast)
 
-        writeFileSync(schemaFilePath.join(sep), JSON.stringify(schema, undefined, 2))
+        writeFileSync(schemaFilePath.join(sep), schema)
         writeFileSync(markdownFilePath.join(sep), docs)
       } catch (error) {
         if (error instanceof Error) {
