@@ -10,6 +10,7 @@ interface Annotated {
 
 interface ObjectConstraints {
   minProperties?: number
+  maxProperties?: number
 }
 
 interface ObjectBase extends ObjectConstraints, Annotated {
@@ -57,6 +58,9 @@ interface Tuple extends Annotated {
 interface NumberConstraints {
   minimum?: number
   maximum?: number
+  exclusiveMinimum?: number
+  exclusiveMaximum?: number
+  multipleOf?: number
 }
 
 interface Number extends NumberConstraints, Annotated {
@@ -142,9 +146,9 @@ type IgnoreValueEach<T> = { [K in keyof T]: IgnoreValue<T[K]> }
 
 // ensures that each key is present in a runtime object
 const constraintsByType: IgnoreValueEach<ConstraintsByType> = {
-  number: { maximum: 0, minimum: 0 },
+  number: { maximum: 0, minimum: 0, exclusiveMinimum: 0, exclusiveMaximum: 0, multipleOf: 0 },
   string: { minLength: 0, maxLength: 0, format: 0, pattern: 0 },
-  object: { minProperties: 0 },
+  object: { minProperties: 0, maxProperties: 0 },
   array: { minItems: 0, maxItems: 0, uniqueItems: 0 },
 }
 

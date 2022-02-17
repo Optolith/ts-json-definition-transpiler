@@ -4,20 +4,27 @@ export namespace JSDoc {
   const tagValueTypes = {
     main: "string",
     title: "string",
+    // string
+    minLength: "integer",
+    maxLength: "integer",
+    pattern: "string",
+    format: "string",
+    markdown: "boolean",
+    // numeric
+    integer: "boolean",
     minimum: "number",
     maximum: "number",
+    multipleOf: "number",
+    exclusiveMinimum: "number",
+    exclusiveMaximum: "number",
+    // object
     minProperties: "integer",
     maxProperties: "integer",
     patternProperties: "string",
-    minLength: "integer",
-    maxLength: "integer",
+    // array
     minItems: "integer",
     maxItems: "integer",
-    integer: "boolean",
     uniqueItems: "boolean",
-    markdown: "boolean",
-    pattern: "string",
-    format: "string",
   } as const
 
   export type TagValueTypes = typeof tagValueTypes

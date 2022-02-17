@@ -80,12 +80,15 @@ const simpleBody = (node: SimpleNode): string => {
           return LabelledList.create([
             LabelledList.line("Type", node.jsDoc?.tags.integer, value => value ? "Integer" : "Number"),
             LabelledList.line("Minimum", node.jsDoc?.tags.minimum, icode),
+            LabelledList.line("Exclusive Minimum", node.jsDoc?.tags.exclusiveMinimum, icode),
             LabelledList.line("Maximum", node.jsDoc?.tags.maximum, icode),
+            LabelledList.line("Exclusive Maximum", node.jsDoc?.tags.exclusiveMaximum, icode),
+            LabelledList.line("Multiple of", node.jsDoc?.tags.multipleOf, icode),
           ])
         }
         case TokenKind.String: {
           return LabelledList.create([
-            LabelledList.line("Type", "String"),
+            LabelledList.line("Type", node.jsDoc?.tags.markdown, value => value ? "Markdown-formatted String" : "String"),
             LabelledList.line("Minimum Length", node.jsDoc?.tags.minLength, icode),
             LabelledList.line("Maximum Length", node.jsDoc?.tags.maxLength, icode),
             LabelledList.line("Format", node.jsDoc?.tags.format, icode),
