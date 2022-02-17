@@ -322,6 +322,7 @@ const strictObjectBody = (
   return [
     LabelledList.create([
       LabelledList.line("Type", "Object"),
+      LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
     ]),
     `Key | Description | Details\n:-- | :-- | :--\n${propertiesOverview}`,
     ...properties

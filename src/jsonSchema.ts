@@ -8,7 +8,11 @@ interface Annotated {
   description?: string
 }
 
-interface ObjectBase extends Annotated {
+interface ObjectConstraints {
+  minProperties?: number
+}
+
+interface ObjectBase extends ObjectConstraints, Annotated {
   type: "object"
 }
 
@@ -20,18 +24,14 @@ interface StrictObject extends ObjectBase {
   additionalProperties: false
 }
 
-interface DictionaryConstraints {
-  minProperties?: number
-}
-
-interface PatternDictionary extends DictionaryConstraints, ObjectBase {
+interface PatternDictionary extends ObjectBase {
   patternProperties: {
     [pattern: string]: Definition
   }
   additionalProperties: false
 }
 
-interface Dictionary extends DictionaryConstraints, ObjectBase {
+interface Dictionary extends ObjectBase {
   additionalProperties: Definition
 }
 
@@ -132,7 +132,7 @@ const toAnnotations = (jsDoc: JSDoc.Type | undefined) => ({
 type ConstraintsByType = {
   number: NumberConstraints,
   string: StringConstraints,
-  object: DictionaryConstraints,
+  object: ObjectConstraints,
   array: ArrayConstraints,
 }
 
@@ -177,6 +177,7 @@ const nodeToDefinition = (node: ChildNode): Definition => {
         required: Object.entries(node.elements)
           .filter(([_, config]) => config.required)
           .map(([key]) => key),
+        ...toConstraints(node.jsDoc, "object"),
         additionalProperties: false
       }
     }
