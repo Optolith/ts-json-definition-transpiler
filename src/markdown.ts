@@ -88,7 +88,7 @@ const simpleBody = (node: SimpleNode): string => {
         }
         case TokenKind.String: {
           return LabelledList.create([
-            LabelledList.line("Type", node.jsDoc?.tags.markdown ?? false, value => value ? "Markdown-formatted String" : "String"),
+            LabelledList.line("Type", node.jsDoc?.tags.markdown ?? false, value => value ? "Markdown-formatted text" : "String"),
             LabelledList.line("Minimum Length", node.jsDoc?.tags.minLength, icode),
             LabelledList.line("Maximum Length", node.jsDoc?.tags.maxLength, icode),
             LabelledList.line("Format", node.jsDoc?.tags.format, icode),

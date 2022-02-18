@@ -38,6 +38,7 @@ JSDoc | TypeScript | Tag Comment Type | JSON Schema | Markdown
 :-- | :-- | :-- | :-- | :--
 Description | all | `markdown` | `description` keyword | Description
 `@title` | all | `string` | `title` keyword | Heading
+`@markdown` | `string` | `boolean` | — | Type: Markdown-formatted text
 `@minLength` | `string` | `number` | `minLength` keyword | Minimum Length
 `@maxLength` | `string` | `number` | `maxLength` keyword | Maximum Length
 `@pattern` | `string` | `string` | `maxLength` keyword | Pattern
