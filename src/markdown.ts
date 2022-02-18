@@ -78,7 +78,7 @@ const simpleBody = (node: SimpleNode): string => {
       switch (node.token) {
         case TokenKind.Number: {
           return LabelledList.create([
-            LabelledList.line("Type", node.jsDoc?.tags.integer, value => value ? "Integer" : "Number"),
+            LabelledList.line("Type", node.jsDoc?.tags.integer ?? false, value => value ? "Integer" : "Number"),
             LabelledList.line("Minimum", node.jsDoc?.tags.minimum, icode),
             LabelledList.line("Exclusive Minimum", node.jsDoc?.tags.exclusiveMinimum, icode),
             LabelledList.line("Maximum", node.jsDoc?.tags.maximum, icode),
@@ -88,7 +88,7 @@ const simpleBody = (node: SimpleNode): string => {
         }
         case TokenKind.String: {
           return LabelledList.create([
-            LabelledList.line("Type", node.jsDoc?.tags.markdown, value => value ? "Markdown-formatted String" : "String"),
+            LabelledList.line("Type", node.jsDoc?.tags.markdown ?? false, value => value ? "Markdown-formatted String" : "String"),
             LabelledList.line("Minimum Length", node.jsDoc?.tags.minLength, icode),
             LabelledList.line("Maximum Length", node.jsDoc?.tags.maxLength, icode),
             LabelledList.line("Format", node.jsDoc?.tags.format, icode),
