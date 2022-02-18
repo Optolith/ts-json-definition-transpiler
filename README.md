@@ -32,64 +32,34 @@ Example:
  */
 ```
 
-### Supported types
+### Supported JSDoc tags
 
-Types may have constraints, which are annotated as JSDoc tags. They may have an associated value.
+JSDoc | TypeScript | Tag Comment Type | JSON Schema | Markdown
+:-- | :-- | :-- | :-- | :--
+Description | all | `markdown` | `description` keyword | Description
+`@title` | all | `string` | `title` keyword | Heading
+`@minLength` | `string` | `number` | `minLength` keyword | Minimum Length
+`@maxLength` | `string` | `number` | `maxLength` keyword | Maximum Length
+`@pattern` | `string` | `string` | `maxLength` keyword | Pattern
+`@format` | `string` | `string` | `maxLength` keyword | Format
+`@integer` | `number` | `boolean` | `"type": "integer"` instead of `"type": "number"` | Type: Integer
+`@minimum` | `number` | `number` | `minimum` keyword | Minimum
+`@maximum` | `number` | `number` | `maximum` keyword | Maximum
+`@exclusiveMinimum` | `number` | `number` | `exclusiveMinimum` keyword | Exclusive Minimum
+`@exclusiveMaximum` | `number` | `number` | `exclusiveMaximum` keyword | Exclusive Maximum
+`@multipleOf` | `number` | `number` | `multipleOf` keyword | Multiple of
+`@minItems` | `array` | `number` | `minItems` keyword | Minimum Items
+`@maxItems` | `array` | `number` | `maxItems` keyword | Maximum Items
+`@uniqueItems` | `array` | `boolean` | `uniqueItems` keyword | Unique Items
+`@minProperties` | `object` | `number` | `minProperties` keyword | Minimum Properties
+`@maxProperties` | `object` | `number` | `maxProperties` keyword | Maximum Properties
+`@patternProperties` | `object` | `string` | `patternProperties` keyword | Values matching pattern
 
-#### Descriptive tags
+#### Boolean tags
 
-Each type supports descriptive tags used in both output formats.
+Boolean tags require no additional comment, if they are present, they are set to `true`, otherwise they are `false`. You can explicitly set them to `true` if you prefer (e.g. `@integer true`).
 
-##### `@title`
-
-Not only used for JSON Schema, it is also used for headings in Markdown.
-
-##### Description
-
-The JSDoc comment itself is used as the value `description` in JSON Schema and also precedes any details in Markdown
-
-#### String
-
-##### Supported tags
-
-- `@minLength` — `integer`
-- `@maxLength` — `integer`
-
-#### Number
-
-##### Supported tags
-
-- `@integer` If this tag is present, the number is output as an integer and other tags related to the value are also interpreted as integers.
-- `@minimum` — `integer/number`
-- `@maximum` — `integer/number`
-
-#### Array
-
-##### Supported tags
-
-- `@minItems` — `integer`
-- `@maxItems` — `integer`
-- `@uniqueItems`
-
-#### Object
-
-An object with strict properties cannot have indexed properties at the same time.
-
-##### Supported tags
-
-None.
-
-#### Dictionary
-
-An object with indexed properties cannot have strict properties at the same time.
-
-##### Supported tags
-
-This is used for indexed properties.
-
-- `@minProperties`
-
-##### Pattern Dictionary
+#### Pattern Dictionary
 
 Pattern properties are annotated using `@patternProperties`. The value of this annotation is the pattern that should be used for the indexed properties. It is annotated on the indexed property definition, not the object itself.
 
@@ -99,7 +69,7 @@ Example:
 /**
  * @minProperties 1
  */
-type IndexedObject = {
+type Dictionary = {
   /**
    * @patternProperties ^KEY_[1-9]$
    */
@@ -107,6 +77,6 @@ type IndexedObject = {
 }
 ```
 
-#### Literals
+### Generics
 
-Strings, numbers and boolean values are supported.
+Generics are **supported in a limited way**. You can use them, but since they are not supported in JSON Schema, the output is different: The declarations of types with generics are not output, instead, all locations where this generic type is used are resolved as if you had declared the type directly, without generics. This already happens at the custom AST level, so even if you use the AST for your own format, you'll not get information about generics.
