@@ -1,4 +1,4 @@
-import { ChildNode, JSDoc, NodeKind, RootNode, TokenKind } from "./ast"
+import { ChildNode, JSDoc, NodeKind, parentGroupToArray, RootNode, TokenKind } from "./ast"
 
 /**
  * Descriptive annotations of the JSON type definition
@@ -250,10 +250,11 @@ const nodeToDefinition = (node: ChildNode): Definition => {
     }
     case NodeKind.Reference: {
       const externalFilePath = node.externalFilePath ? `${node.externalFilePath}.schema.json` : ""
+      const qualifiedName = [...parentGroupToArray(node.parentGroup), node.name].join("/")
 
       return {
         ...toAnnotations(node.jsDoc),
-        $ref: `${externalFilePath}#/definitions/${[...node.parentGroups, node.name].join("/")}`
+        $ref: `${externalFilePath}#/definitions/${qualifiedName}`
       }
     }
     case NodeKind.Token: {

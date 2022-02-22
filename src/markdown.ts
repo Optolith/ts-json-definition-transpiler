@@ -1,4 +1,4 @@
-import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "./ast"
+import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "./ast"
 
 const h = (level: number, text: string, anchor?: string) => {
   const safeLevel = level < 1 ? 1 : level > 6 ? 6 : level
@@ -23,7 +23,10 @@ const docHeader = (schema: RootNode, jsDoc: JSDoc.Type | undefined) => {
 }
 
 const definitionHeader = (id: string, jsDoc: JSDoc.Type | undefined) => {
-  return headerWithDescription(h(3, jsDoc?.tags.title ?? id, id), jsDoc?.comment)
+  return headerWithDescription(
+    h(3, jsDoc?.tags.title ? `${jsDoc?.tags.title} (\`${id}\`)` : `\`${id}\``, id),
+    jsDoc?.comment
+  )
 }
 
 const headerWithDescription = (title: string, description: string | undefined) => {
@@ -66,12 +69,6 @@ type SimpleNode =
   | ReferenceNode
   | EnumerationNode
 
-const isSimpleNode = (node: ChildNode): node is SimpleNode =>
-  node.kind === NodeKind.Token
-  || node.kind === NodeKind.Literal
-  || node.kind === NodeKind.Reference
-  || node.kind === NodeKind.Enumeration
-
 const simpleBody = (node: SimpleNode): string => {
   switch (node.kind) {
     case NodeKind.Token: {
@@ -112,10 +109,14 @@ const simpleBody = (node: SimpleNode): string => {
         LabelledList.line(
           "Type",
           node,
-          ({ name, parentGroups, externalFilePath }) => a(
-            name,
-            `${externalFilePath ? `${externalFilePath}.md` : ""}#${[...parentGroups, name].join("/")}`
-          )
+          ({ name, parentGroup, externalFilePath }) => {
+            const fullQualifiedName = [...parentGroupToArray(parentGroup), name].join("/")
+
+            return a(
+              fullQualifiedName,
+              `${externalFilePath ? `${externalFilePath}.md` : ""}#${fullQualifiedName}`
+            )
+          }
         ),
       ])
     }
@@ -134,162 +135,141 @@ const simpleBody = (node: SimpleNode): string => {
   }
 }
 
+type SectionNode = {
+  inline: string[]
+  append: SectionNode[]
+}
+
+const mergeParagraphs = ({ inline, append }: SectionNode): string[] =>
+  [ ...inline, ...append.flatMap(mergeParagraphs) ]
+
 const arrayBody = (
   node: ArrayNode,
-  headingLevel: number,
   propertyPath: string
-): string[] => {
-  return [
-    LabelledList.create([
-      LabelledList.line("Type", "List"),
-      LabelledList.line("Minimum Items", node.jsDoc?.tags.minItems, icode),
-      LabelledList.line("Maximum Items", node.jsDoc?.tags.maxItems, icode),
-      LabelledList.line("Unique Items", node.jsDoc?.tags.uniqueItems, boolean),
-    ]),
-    h(headingLevel + 1, "Items"),
-    isSimpleNode(node.elements) ? simpleBody(node.elements) : printJson(node.elements)
-  ]
+): SectionNode => {
+  const itemsPropertyPath = `${propertyPath}[]`
+
+  return {
+    inline: [
+      LabelledList.create([
+        LabelledList.line("Type", "List"),
+        LabelledList.line("Items", itemsPropertyPath, anchor => a(anchor, `#${anchor}`)),
+        LabelledList.line("Minimum Items", node.jsDoc?.tags.minItems, icode),
+        LabelledList.line("Maximum Items", node.jsDoc?.tags.maxItems, icode),
+        LabelledList.line("Unique Items", node.jsDoc?.tags.uniqueItems, boolean),
+      ])
+    ],
+    append: [
+      definitionToMarkdown(itemsPropertyPath, node.elements),
+    ]
+  }
 }
 
 const tupleBody = (
   node: TupleNode,
-  headingLevel: number,
   propertyPath: string
-): string[] => {
-  return [
-    LabelledList.create([
-      LabelledList.line("Type", "Tuple"),
-    ]),
-    ...node.elements.flatMap((childNode, index) => {
-      if (isSimpleNode(childNode)) {
-        return [
-          headerWithDescription(
-            h(headingLevel + 1, `Index ${index}`),
-            childNode.jsDoc?.comment
-          ),
-          simpleBody(childNode)
-        ]
-      }
-      else {
-        return [
-          headerWithDescription(
-            h(headingLevel + 1, `Index ${index}`),
-            childNode.jsDoc?.comment
-          ),
-          ...definitionBody(childNode, headingLevel + 1, `${propertyPath}\`${index}`)
-        ]
-      }
-    })
-  ]
+): SectionNode => {
+  const indexedPropertyPath = (index: number) => `${propertyPath}[${index}]`
+
+  return {
+    inline: [
+      LabelledList.create([
+        LabelledList.line("Type", "Tuple"),
+        LabelledList.line(
+          "Items",
+          node.elements,
+          childNodes => `[${
+            childNodes
+              .map((_, index) =>
+                a(indexedPropertyPath(index), indexedPropertyPath(index)))
+              .join(", ")
+          }]`
+        ),
+      ]),
+    ],
+    append: node.elements.map(
+      (childNode, index) =>
+        definitionToMarkdown(indexedPropertyPath(index), childNode)
+    )
+  }
 }
 
 const unionBody = (
   node: UnionNode,
-  headingLevel: number,
   propertyPath: string
-): string[] => {
-  const cases = node.cases
-    .flatMap((childNode, index): string[] => {
-      if (childNode.kind === NodeKind.Reference) {
-        return [
-          headerWithDescription(
-            h(headingLevel + 1, `Case: ${childNode.jsDoc?.tags.title ?? childNode.name}`),
-            childNode.jsDoc?.comment
-          ),
-          simpleBody(childNode)
-        ]
-      }
-      else if (isSimpleNode(childNode)) {
-        return [
-          headerWithDescription(
-            h(headingLevel + 1, `Case: ${childNode.jsDoc?.tags.title ?? index.toFixed(0)}`),
-            childNode.jsDoc?.comment
-          ),
-          simpleBody(childNode)
-        ]
-      }
-      else {
-        const id = (() => {
-          if (childNode.kind === NodeKind.Record) {
-            const tagProperty = childNode.elements["tag"]
-            return tagProperty && tagProperty.value.kind === NodeKind.Literal
-              ? tagProperty.value.value.toString()
-              : index.toFixed(0)
-          }
-          else {
-            return index.toFixed(0)
-          }
-        })()
+): SectionNode => {
+  const id = (childNode: ChildNode, index: number) => {
+    switch (childNode.kind) {
+      case NodeKind.Record: {
+        const tagProperty = childNode.elements["tag"]
 
-        const casePropertyPath = `${propertyPath}\`${index}`
-
-        return [
-          headerWithDescription(
-            h(headingLevel + 1, `Case: ${childNode.jsDoc?.tags.title ?? id}`),
-            childNode.jsDoc?.comment
-          ),
-          ...definitionBody(childNode, headingLevel + 1, casePropertyPath)
-        ]
+        return tagProperty && tagProperty.value.kind === NodeKind.Literal
+          ? tagProperty.value.value.toString()
+          : index.toFixed(0)
       }
-    })
 
-  return [
-    LabelledList.create([
-      LabelledList.line("Type", "Union"),
-    ]),
-    ...cases
-  ]
+      case NodeKind.Reference: {
+        return childNode.name
+      }
+
+      default: {
+        return index.toFixed(0)
+      }
+    }
+  }
+
+  const casePropertyPath = (caseId: string) => `${propertyPath}'${caseId}`
+
+  return {
+    inline: [
+      LabelledList.create([
+        LabelledList.line("Type", "Union"),
+        LabelledList.line(
+          "Cases",
+          node.cases,
+          cases =>
+            cases
+              .map((childNode, index) => {
+                const caseId = casePropertyPath(id(childNode, index))
+
+                return a(caseId, caseId)
+              })
+              .join(" | ")
+        ),
+      ])
+    ],
+    append: node.cases.map(
+      (childNode, index) =>
+        definitionToMarkdown(casePropertyPath(id(childNode, index)), childNode)
+    )
+  }
 }
 
 const dictionaryBody = (
   node: DictionaryNode,
-  headingLevel: number,
   propertyPath: string
-): string[] => {
-  return [
-    LabelledList.create([
-      LabelledList.line("Type", "Dictionary"),
-      LabelledList.line("Pattern", node.pattern, icode),
-      LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
-    ]),
-    h(headingLevel + 1, node.pattern ? `Values matching \`${node.pattern}\`` : "Values"),
-    isSimpleNode(node.elements) ? simpleBody(node.elements) : printJson(node.elements)
-  ]
-}
+): SectionNode => {
+  const itemsPropertyPath = `${propertyPath}[key]`
 
-const nonStrictObject = (node: Exclude<ChildNode, RecordNode>, headingLevel: number, propertyPath: string): string[] => {
-  if (isSimpleNode(node)) {
-    return [simpleBody(node)]
-  }
-  else {
-    switch (node.kind) {
-      case NodeKind.Array: {
-        return arrayBody(node, headingLevel, propertyPath)
-      }
-      case NodeKind.Union: {
-        return unionBody(node, headingLevel, propertyPath)
-      }
-      case NodeKind.Dictionary: {
-        return dictionaryBody(node, headingLevel, propertyPath)
-      }
-      case NodeKind.Tuple: {
-        return tupleBody(node, headingLevel, propertyPath)
-      }
-      case NodeKind.Group: {
-        return Object.entries(node.elements)
-          .flatMap(([key, childNode]) =>
-            definitionBody(childNode, headingLevel, `${propertyPath}/${key}`)
-          )
-      }
-    }
+  return {
+    inline: [
+      LabelledList.create([
+        LabelledList.line("Type", "Dictionary"),
+        LabelledList.line("Property Values", itemsPropertyPath, anchor => a(anchor, `#${anchor}`)),
+        LabelledList.line("Pattern", node.pattern, icode),
+        LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
+      ]),
+    ],
+    append: [
+      definitionToMarkdown(itemsPropertyPath, node.elements),
+    ]
   }
 }
 
 const strictObjectBody = (
   node: RecordNode,
-  headingLevel: number,
   propertyPath: string
-): string[] => {
+): SectionNode => {
   const propertiesOverview = Object.entries(node.elements)
     .map(([key, config]) => {
       const propertyPropertyPath = `${propertyPath}/${key}`
@@ -304,67 +284,145 @@ const strictObjectBody = (
     .join("\n")
 
   const properties = Object.entries(node.elements)
-    .flatMap(([key, config]): string[] => {
-      const propertyPropertyPath = `${propertyPath}/${key}`
-      const title = h(headingLevel + 1, `\`${key}${config.required ? "" : "?"}\``, propertyPropertyPath)
+    .reduce<SectionNode>(
+      (
+        {
+          inline,
+          append,
+        },
+        [key, propertyNode]
+      ) => {
+        const propertyPropertyPath = `${propertyPath}/${key}`
+        const title = h(4, `\`${key}${propertyNode.required ? "" : "?"}\``, propertyPropertyPath)
 
-      if (config.value.kind === NodeKind.Record) {
-        return [
-          headerWithDescription(title, config.jsDoc?.comment),
-          printJson(config)
-        ]
+        if (propertyNode.value.kind === NodeKind.Record) {
+          return {
+            inline: [
+              ...inline,
+              headerWithDescription(title, propertyNode.jsDoc?.comment),
+              LabelledList.create([
+                LabelledList.line("Type", propertyPropertyPath, anchor => a("Object", `#${anchor}`)),
+              ]),
+            ],
+            append: [
+              ...append,
+              definitionToMarkdown(propertyPropertyPath, propertyNode.value)
+            ],
+          }
+        }
+        else {
+          const { inline: inlineCurrent, append: appendCurrent } = definitionToMarkdown(
+            propertyPropertyPath,
+            propertyNode.value,
+            true,
+            headerWithDescription(title, propertyNode.jsDoc?.comment)
+          )
+
+          return {
+            inline: [
+              ...inline,
+              ...inlineCurrent,
+            ],
+            append: [
+              ...append,
+              ...appendCurrent
+            ],
+          }
+        }
+      },
+      {
+        inline: [],
+        append: [],
       }
-      else {
-        return [
-          headerWithDescription(title, config.jsDoc?.comment),
-          ...nonStrictObject(config.value, headingLevel + 1, propertyPropertyPath)
-        ]
+    )
+
+  return {
+    inline: [
+      LabelledList.create([
+        LabelledList.line("Type", "Object"),
+        LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
+      ]),
+      `Key | Description | Details\n:-- | :-- | :--\n${propertiesOverview}`,
+      ...properties.inline,
+    ],
+    append: properties.append
+  }
+}
+
+const prependHeader = (
+  propertyPath: string,
+  node: ChildNode,
+  skipLine: boolean,
+  header: string | undefined,
+  { inline, append }: SectionNode,
+) =>
+  ({
+    inline: [
+      ...(!skipLine ? ["---"] : []),
+      header ?? definitionHeader(propertyPath, node.jsDoc),
+      ...inline
+    ],
+    append
+  })
+
+const definitionToMarkdown = (
+  propertyPath: string,
+  node: ChildNode,
+  skipLine = false,
+  header?: string
+): SectionNode => {
+  switch (node.kind) {
+    case NodeKind.Token:
+    case NodeKind.Literal:
+    case NodeKind.Reference:
+    case NodeKind.Enumeration: {
+      return prependHeader(propertyPath, node, skipLine, header, {
+        inline: [simpleBody(node)],
+        append: []
+      })
+    }
+    case NodeKind.Record: {
+      return prependHeader(propertyPath, node, skipLine, header,
+        strictObjectBody(node, propertyPath))
+    }
+    case NodeKind.Array: {
+      return prependHeader(propertyPath, node, skipLine, header,
+        arrayBody(node, propertyPath))
+    }
+    case NodeKind.Union: {
+      return prependHeader(propertyPath, node, skipLine, header,
+        unionBody(node, propertyPath))
+    }
+    case NodeKind.Dictionary: {
+      return prependHeader(propertyPath, node, skipLine, header,
+        dictionaryBody(node, propertyPath))
+    }
+    case NodeKind.Tuple: {
+      return prependHeader(propertyPath, node, skipLine, header,
+        tupleBody(node, propertyPath))
+    }
+    case NodeKind.Group: {
+      return {
+        inline: [],
+        append: Object.entries(node.elements)
+          .map(([key, childNode], i) =>
+            definitionToMarkdown(`${propertyPath}/${key}`, childNode, skipLine && i === 0)
+          )
       }
-    })
-
-  return [
-    LabelledList.create([
-      LabelledList.line("Type", "Object"),
-      LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
-    ]),
-    `Key | Description | Details\n:-- | :-- | :--\n${propertiesOverview}`,
-    ...properties
-  ]
-}
-
-const printJson = (json: any) => `\`\`\`json\n${JSON.stringify(json, undefined, 2)}\n\`\`\``
-
-const definitionBody = (node: ChildNode, headingLevel: number, propertyPath: string): string[] => {
-  if (node.kind === NodeKind.Record) {
-    return strictObjectBody(node, headingLevel, propertyPath)
-  }
-  else {
-    return nonStrictObject(node, headingLevel, propertyPath)
+    }
   }
 }
 
-const definitionToMarkdown = (id: string, node: ChildNode, headingLevel: number) => {
-  const header = definitionHeader(id, node.jsDoc)
-  const body = definitionBody(node, headingLevel, id)
-
-  return [
-    header,
-    ...body
-  ]
-}
+const logr = <T>(x: T): T => (console.log(JSON.stringify(x, undefined, 2)), x)
 
 export const astToMarkdown = (file: RootNode): string => {
   const ref = file.jsDoc?.tags.main !== undefined ? file.elements[file.jsDoc?.tags.main] : undefined
 
   const definitions = Object.entries(file.elements)
-    .flatMap(([id, definition], i, arr) =>
-      arr.length > i + 1
-        ? [
-          ...definitionToMarkdown(id, definition, 3),
-          "---"
-        ]
-        : definitionToMarkdown(id, definition, 3)
+    .map(([id, definition], i) =>
+      definitionToMarkdown(id, definition, i === 0)
     )
+    .flatMap(mergeParagraphs)
 
   return [
     docHeader(file, ref?.jsDoc),

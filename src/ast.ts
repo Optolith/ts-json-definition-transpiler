@@ -155,11 +155,23 @@ export type TokenNode = {
   jsDoc?: JSDoc.Type
 }
 
+export type ParentGroup = {
+  name: string
+  parentGroup?: ParentGroup
+}
+
+/**
+ * Resolves a single-linked list of parent nodes into an array, where the
+ * resulting array is sorted right-to-left.
+ */
+export const parentGroupToArray = (group: ParentGroup | undefined): string[] =>
+  group === undefined ? [] : [...parentGroupToArray(group.parentGroup), group.name]
+
 export type ReferenceNode = {
   kind: NodeKind.Reference
   jsDoc?: JSDoc.Type
   name: string
-  parentGroups: string[]
+  parentGroup?: ParentGroup
   externalFilePath?: string
 }
 
@@ -251,14 +263,14 @@ const parentModuleSymbol = (symbol: ts.Symbol, checker: ts.TypeChecker) => {
     : undefined
 }
 
-const traverseAbsoluteParentModules = (accPath: string[], currentModule: ts.Symbol, checker: ts.TypeChecker): string[] => {
+const traverseAbsoluteParentModules = (currentModule: ts.Symbol, checker: ts.TypeChecker): ParentGroup | undefined => {
   const parentModule = parentModuleSymbol(currentModule, checker)
 
   if (parentModule) {
-    return traverseAbsoluteParentModules([...accPath, parentModule.name], parentModule, checker)
+    return { name: parentModule.name, parentGroup: traverseAbsoluteParentModules(parentModule, checker)}
   }
   else {
-    return accPath
+    return undefined
   }
 }
 
@@ -403,7 +415,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         return typeArguments[name]!
       }
 
-      const parentGroups = symbol ? traverseAbsoluteParentModules([], symbol, checker) : []
+      const parentGroup = symbol ? traverseAbsoluteParentModules(symbol, checker) : undefined
 
       const importNodes = node.getSourceFile().statements.filter(ts.isImportDeclaration)
 
@@ -428,7 +440,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         kind: NodeKind.Reference,
         jsDoc,
         name,
-        parentGroups,
+        parentGroup,
         externalFilePath
       }
     }

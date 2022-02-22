@@ -18,7 +18,7 @@ npm start -- --tsdir "../src/entity" --jsondir "../schema" --mddir "../docs/refe
 
 The tool takes all TypeScript files from the source directory `tsdir` and outputs a JSON Schema to `jsondir` and a Markdown file to `mddir` for each file. All three options can point to the same folder. It does not do any cleanup, it only overwrites existing files. Types that are referenced from other files are also referenced this way in JSON Schema and Markdown, so that the output is a mirror of the TypeScript files without any duplicate definitions in both JSON Schema and Markdown. Not that all types must be present in the specified directory, otherwise references/links in JSON schema and Markdown will not work.
 
-Usually an error is thrown if the tool encounters an unsupported structure. The only exception from this is that if structures are too deeply nested for Markdown representation, the nested types will be output as formatted JSON schema.
+An error is thrown if the tool encounters an unsupported structure.
 
 ### Main type
 

@@ -16,6 +16,7 @@ const getOptionValue = (name: string) => {
 const tsDir = getOptionValue("--tsdir")
 const jsonSchemaDir = getOptionValue("--jsondir")
 const mdDir = getOptionValue("--mddir")
+const debug = process.argv.includes("--debug")
 
 if (!tsDir || !jsonSchemaDir || !mdDir) {
   console.log(`\
@@ -60,6 +61,7 @@ else {
   program
     .getSourceFiles()
     .filter(file => tsFiles.includes(file.fileName))
+    // .filter(file => file.fileName.includes("_Prerequisite"))
     .forEach(file => {
       const base = basename(file.fileName, ".ts")
       const schemaFilePath = [...jsonSchemaRoot, `${base}.schema.json`]
@@ -74,6 +76,9 @@ else {
         const schema = jsonSchemaToFileContent(astToJsonSchema(ast, schemaId))
         const docs = astToMarkdown(ast)
 
+        if (debug) {
+          writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
+        }
         writeFileSync(schemaFilePath.join(sep), schema)
         writeFileSync(markdownFilePath.join(sep), docs)
       } catch (error) {
