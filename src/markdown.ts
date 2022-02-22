@@ -1,3 +1,4 @@
+import { EOL } from "os"
 import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "./ast"
 
 const h = (level: number, text: string, anchor?: string) => {
@@ -34,7 +35,7 @@ const headerWithDescription = (title: string, description: string | undefined) =
     return title
   }
 
-  return `${title}\n\n${description}`
+  return `${title}${EOL}${EOL}${description}`
 }
 
 namespace LabelledList {
@@ -60,7 +61,7 @@ namespace LabelledList {
     : undefined
 
   export const create = (items: (string | undefined)[]) =>
-    items.filter(item => item !== undefined).join("\n")
+    items.filter(item => item !== undefined).join(EOL)
 }
 
 type SimpleNode =
@@ -281,7 +282,7 @@ const strictObjectBody = (
         a("See details", `#${propertyPropertyPath}`)
       ].join(" | ")
     })
-    .join("\n")
+    .join(EOL)
 
   const properties = Object.entries(node.elements)
     .reduce<SectionNode>(
@@ -342,7 +343,7 @@ const strictObjectBody = (
         LabelledList.line("Type", "Object"),
         LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
       ]),
-      `Key | Description | Details\n:-- | :-- | :--\n${propertiesOverview}`,
+      `Key | Description | Details${EOL}:-- | :-- | :--${EOL}${propertiesOverview}`,
       ...properties.inline,
     ],
     append: properties.append
@@ -428,5 +429,5 @@ export const astToMarkdown = (file: RootNode): string => {
     docHeader(file, ref?.jsDoc),
     h(2, "Definitions"),
     ...definitions
-  ].join("\n\n") + "\n"
+  ].join(EOL + EOL) + EOL
 }

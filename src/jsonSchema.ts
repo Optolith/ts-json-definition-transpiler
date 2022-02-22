@@ -1,3 +1,4 @@
+import { EOL } from "os"
 import { ChildNode, JSDoc, NodeKind, parentGroupToArray, RootNode, TokenKind } from "./ast"
 
 /**
@@ -301,4 +302,4 @@ export const astToJsonSchema = (file: RootNode, schemaFileName: string): JsonSch
 }
 
 export const jsonSchemaToFileContent = (schema: JsonSchema): string =>
-  `${JSON.stringify(schema, undefined, 2)}\n`
+  `${JSON.stringify(schema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
