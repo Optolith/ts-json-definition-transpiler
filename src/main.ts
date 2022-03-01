@@ -67,7 +67,7 @@ else {
   program
     .getSourceFiles()
     .filter(file => tsFiles.includes(file.fileName))
-    // .filter(file => file.fileName.includes("_Prerequisite"))
+    // .filter(file => file.fileName.includes("Curse"))
     .forEach(file => {
       const relativePath = relative(typesRootPath, file.fileName)
       const dir          = dirname(relativePath)

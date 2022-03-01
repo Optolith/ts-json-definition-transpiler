@@ -274,6 +274,15 @@ const traverseAbsoluteParentModules = (currentModule: ts.Symbol, checker: ts.Typ
   }
 }
 
+const outerMostGroupName = (group: ParentGroup): string => {
+  if (group.parentGroup) {
+    return outerMostGroupName(group.parentGroup)
+  }
+  else {
+    return group.name
+  }
+}
+
 const propertyNameToString = (propertyName: ts.PropertyName): string =>
   ts.isComputedPropertyName(propertyName)
     ? propertyName.expression.getText()
@@ -411,11 +420,13 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         // such as "Test.Collection" in "Test.Collection.Plain", inside left the left is "Test"
         : node.typeName.right.escapedText.toString()
 
-      if (name in typeArguments) {
+      const parentGroup = symbol ? traverseAbsoluteParentModules(symbol, checker) : undefined
+
+      if (parentGroup === undefined && name in typeArguments) {
         return typeArguments[name]!
       }
 
-      const parentGroup = symbol ? traverseAbsoluteParentModules(symbol, checker) : undefined
+      const outerMostReference = parentGroup ? outerMostGroupName(parentGroup) : name
 
       const importNodes = node.getSourceFile().statements.filter(ts.isImportDeclaration)
 
@@ -424,7 +435,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
 
         if (namedBindings && ts.isNamedImports(namedBindings)) {
           return namedBindings.elements.some(
-            namedBinding => namedBinding.name.escapedText === name
+            namedBinding => namedBinding.name.escapedText === outerMostReference
           )
         }
         else {
@@ -441,7 +452,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         jsDoc,
         name,
         parentGroup,
-        externalFilePath
+        externalFilePath,
       }
     }
   }
