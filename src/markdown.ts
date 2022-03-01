@@ -10,6 +10,8 @@ const h = (level: number, text: string, anchor?: string) => {
 
 const a = (text: string, href: string) => `<a href="${href}">${text}</a>`
 
+const namedLink = (anchorName: string, fileUrl = "") => `${fileUrl}#${anchorName}`
+
 const icode = (code: string | number | boolean) => `\`${code}\``
 
 const icodejson = (code: string | number | boolean) => `\`${JSON.stringify(code)}\``
@@ -154,7 +156,7 @@ const arrayBody = (
     inline: [
       LabelledList.create([
         LabelledList.line("Type", "List"),
-        LabelledList.line("Items", itemsPropertyPath, anchor => a(anchor, `#${anchor}`)),
+        LabelledList.line("Items", itemsPropertyPath, anchor => a(anchor, namedLink(anchor))),
         LabelledList.line("Minimum Items", node.jsDoc?.tags.minItems, icode),
         LabelledList.line("Maximum Items", node.jsDoc?.tags.maxItems, icode),
         LabelledList.line("Unique Items", node.jsDoc?.tags.uniqueItems, boolean),
@@ -233,7 +235,7 @@ const unionBody = (
               .map((childNode, index) => {
                 const caseId = casePropertyPath(id(childNode, index))
 
-                return a(caseId, caseId)
+                return a(caseId, namedLink(caseId))
               })
               .join(" | ")
         ),
@@ -256,7 +258,7 @@ const dictionaryBody = (
     inline: [
       LabelledList.create([
         LabelledList.line("Type", "Dictionary"),
-        LabelledList.line("Property Values", itemsPropertyPath, anchor => a(anchor, `#${anchor}`)),
+        LabelledList.line("Property Values", itemsPropertyPath, anchor => a(anchor, namedLink(anchor))),
         LabelledList.line("Pattern", node.pattern, icode),
         LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
       ]),
@@ -279,7 +281,7 @@ const strictObjectBody = (
       return [
         title,
         config.jsDoc?.comment ?? "",
-        a("See details", `#${propertyPropertyPath}`)
+        a("See details", namedLink(propertyPropertyPath))
       ].join(" | ")
     })
     .join(EOL)
@@ -302,7 +304,7 @@ const strictObjectBody = (
               ...inline,
               headerWithDescription(title, propertyNode.jsDoc?.comment),
               LabelledList.create([
-                LabelledList.line("Type", propertyPropertyPath, anchor => a("Object", `#${anchor}`)),
+                LabelledList.line("Type", propertyPropertyPath, anchor => a("Object", namedLink(anchor))),
               ]),
             ],
             append: [
