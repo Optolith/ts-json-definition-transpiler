@@ -6,34 +6,97 @@ import { jsonSchemaRenderer } from "./renderers/jsonSchema.js"
 import { markdownRenderer } from "./renderers/markdown.js"
 
 export type MetaInformation = {
+  /**
+   * The absolute path to the output file.
+   */
   absolutePath: string
+
+  /**
+   * The path to the output file relative to the output root directory.
+   */
   relativePath: string
 }
 
+/**
+ * A function that takes the custom AST and some meta information about the
+ * current source file and returns the content of the output file to be written.
+ */
 export type AstTransformer = (ast: RootNode, meta: MetaInformation) => string
 
+/**
+ * A renderer is specified by an AST transformer and the file extension, since
+ * the file extension is used for the output paths received by the transformer.
+ */
 export type Renderer = {
+  /**
+   * The AST transformer for a single file.
+   */
   transformer: AstTransformer
+
+  /**
+   * The file extension the output files should use, e.g. `.md`.
+   */
   fileExtension: string
 }
 
+/**
+ * An output configuration.
+ */
 export type Output = {
+  /**
+   * The absolute folder path rendered files should be written to.
+   */
   folder: string
+
+  /**
+   * The renderer configuration.
+   */
   renderer: Renderer
 }
 
+/**
+ * A dictionary of renderers that ship with this package.
+ */
 export const defaultRenderers = Object.freeze({
   jsonSchema: jsonSchemaRenderer,
   markdown: markdownRenderer,
 })
 
+/**
+ * The generator options.
+ */
 export type GeneratorOptions = {
+  /**
+   * The absolute path to the source directory of the TypeScript files.
+   */
   sourceDir: string
+
+  /**
+   * An array of all output format configurations.
+   */
   outputs: Output[]
+
+  /**
+   * If set to `true`, the internal AST will be output for each source file as
+   * a JSON file. So for a `Source.ts` file, a corresponding
+   * `Source.ts.ast.json` file will be generated in the same folder.
+   */
   debug?: boolean
+
+  /**
+   * A predicate that if defined only outputs files for the source files that
+   * match the predicate.
+   */
   filterFile?: (fileName: string) => boolean
 }
 
+/**
+ * For each file in the specified source directory and its subdirectories,
+ * generate a file for each output in the respective specified output directory
+ * with the same relative path as in the source directory.
+ *
+ * @param options - The generator options.
+ */
 export const generate = (options: GeneratorOptions): void => {
   const {
     sourceDir,
