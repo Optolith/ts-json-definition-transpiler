@@ -22,24 +22,26 @@ export type Output = {
   renderer: Renderer
 }
 
-export const defaultRenderers = {
+export const defaultRenderers = Object.freeze({
   jsonSchema: jsonSchemaRenderer,
   markdown: markdownRenderer,
-}
+})
 
 export type GeneratorOptions = {
-  sourceDirectory: string
-  outputConfig: Output[]
+  sourceDir: string
+  outputs: Output[]
   debug?: boolean
-  filterFiles?: (fileName: string) => boolean
+  filterFile?: (fileName: string) => boolean
 }
 
-export const generate = ({
-  sourceDirectory,
-  outputConfig,
-  debug = false,
-  filterFiles,
-}: GeneratorOptions): void => {
+export const generate = (options: GeneratorOptions): void => {
+  const {
+    sourceDir,
+    outputs,
+    debug = false,
+    filterFile,
+  } = options
+
   const flattenTypeScriptFileNamesFromDir = (dirPath: string): string[] => {
     const dirEntryToFilePath = (dirEntry: Dirent) =>
       join(dirPath, dirEntry.name).split(sep).join("/")
@@ -58,26 +60,26 @@ export const generate = ({
       })
   }
 
-  const tsFiles = flattenTypeScriptFileNamesFromDir(sourceDirectory)
+  const tsFiles = flattenTypeScriptFileNamesFromDir(sourceDir)
 
   const program = ts.createProgram(tsFiles, { strict: true })
 
   // KEEP ALWAYS, SIDE EFFECT: it fills the parent references of nodes
   const checker = program.getTypeChecker()
 
-  outputConfig.forEach(({ folder }) => mkdirSync(folder, { recursive: true }))
+  outputs.forEach(({ folder }) => mkdirSync(folder, { recursive: true }))
 
   const rootFiles = program
     .getSourceFiles()
     .filter(file => tsFiles.includes(file.fileName))
 
   const filteredFiles =
-    filterFiles
-    ? rootFiles.filter(file => filterFiles(file.fileName))
+    filterFile
+    ? rootFiles.filter(file => filterFile(file.fileName))
     : rootFiles
 
   filteredFiles.forEach(file => {
-    const relativePath = relative(sourceDirectory, file.fileName)
+    const relativePath = relative(sourceDir, file.fileName)
     const dir          = dirname(relativePath)
     const name         = basename(relativePath, ".ts")
 
@@ -88,7 +90,7 @@ export const generate = ({
         writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
       }
 
-      outputConfig.forEach(({ folder, renderer: { transformer, fileExtension } }) => {
+      outputs.forEach(({ folder, renderer: { transformer, fileExtension } }) => {
         const outputDir = join(folder, dir)
 
         mkdirSync(outputDir, { recursive: true })

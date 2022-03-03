@@ -26,8 +26,8 @@ import { fileURLToPath } from "url";
 const root = dirname(fileURLToPath(import.meta.url))
 
 generate({
-  sourceDirectory: join(root, "src"),
-  outputConfig: [
+  sourceDir: join(root, "src"),
+  outputs: [
     {
       renderer: defaultRenderers.jsonSchema,
       folder: join(root, "schema")
@@ -40,7 +40,7 @@ generate({
 })
 ```
 
-The tool takes all TypeScript files from the `sourceDirectory` and then runs each TypeScript file inside through each output configuration. Built-in output renderers are for JSON Schema definitions and Markdown documentation, so all you need to do is to specify absolute folder paths for them and import them from the module. It does not do any cleanup, it only overwrites existing files. Types that are referenced from other files are also referenced this way in JSON Schema and Markdown, so that the output is a mirror of the TypeScript files without any duplicate definitions in both JSON Schema and Markdown. Note that all types must be present in the specified directory or its subdirectories, otherwise references/links in JSON schema and Markdown will not work.
+The tool takes all TypeScript files from the `sourceDir` and its subdirectories and then runs each TypeScript file inside through each output configuration. Built-in output renderers are for JSON Schema definitions and Markdown documentation, so all you need to do is to specify absolute folder paths for them and import them from the module. It does not do any cleanup, it only overwrites existing files. Types that are referenced from other files are also referenced this way in JSON Schema and Markdown, so that the output is a mirror of the TypeScript files without any duplicate definitions in both JSON Schema and Markdown. The relative folder structure is mirrored as well. Note that all types must be present in the specified directory or its subdirectories, otherwise references/links in JSON schema and Markdown will not work.
 
 You can also build your own renderer by conforming to the `Renderer` type that can be imported.
 
