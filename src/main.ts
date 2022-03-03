@@ -1,4 +1,4 @@
-import { Dirent, mkdirSync, readdirSync, writeFileSync } from "fs"
+import { Dirent, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "fs"
 import { basename, dirname, extname, format, join, relative, sep } from "path"
 import ts from "typescript"
 import { fileToAst, RootNode } from "./ast.js"
@@ -52,6 +52,13 @@ export type Output = {
    * The renderer configuration.
    */
   renderer: Renderer
+
+  /**
+   * If `true`, all contents from the output directory will be removed before
+   * regenerating files. This setting overwrites the setting from the generator
+   * options.
+   */
+  clean?: boolean
 }
 
 /**
@@ -84,6 +91,12 @@ export type GeneratorOptions = {
   dumpAst?: boolean
 
   /**
+   * If `true`, all contents from all output directories will be removed before
+   * regenerating files. This setting may be overwritten for each output.
+   */
+  clean?: boolean
+
+  /**
    * A predicate that if defined only outputs files for the source files that
    * match the predicate.
    */
@@ -102,6 +115,7 @@ export const generate = (options: GeneratorOptions): void => {
     sourceDir,
     outputs,
     dumpAst = false,
+    clean = false,
     filterFile,
   } = options
 
@@ -130,7 +144,13 @@ export const generate = (options: GeneratorOptions): void => {
   // KEEP ALWAYS, SIDE EFFECT: it fills the parent references of nodes
   const checker = program.getTypeChecker()
 
-  outputs.forEach(({ folder }) => mkdirSync(folder, { recursive: true }))
+  outputs.forEach(({ folder, clean: cleanSingle }) => {
+    if ((cleanSingle ?? clean) && existsSync(folder)) {
+      rmSync(folder, { recursive: true })
+    }
+
+    mkdirSync(folder, { recursive: true })
+  })
 
   const rootFiles = program
     .getSourceFiles()
