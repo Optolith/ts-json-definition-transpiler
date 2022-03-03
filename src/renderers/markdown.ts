@@ -19,14 +19,14 @@ const icodejson = (code: string | number | boolean) => `\`${JSON.stringify(code)
 
 const boolean = (boolean: boolean) => boolean ? "Yes" : "No"
 
-const docHeader = (schema: RootNode, jsDoc: JSDoc.Type | undefined) => {
+const docHeader = (schema: RootNode, jsDoc: JSDoc.T | undefined) => {
   const title = jsDoc?.tags.title ?? schema.jsDoc?.tags.title ?? "[TITLE MISSING]"
   const description = jsDoc?.comment ?? schema.jsDoc?.comment
 
   return headerWithDescription(h(1, title), description)
 }
 
-const definitionHeader = (id: string, jsDoc: JSDoc.Type | undefined) => {
+const definitionHeader = (id: string, jsDoc: JSDoc.T | undefined) => {
   return headerWithDescription(
     h(3, jsDoc?.tags.title ? `${jsDoc?.tags.title} (\`${id}\`)` : `\`${id}\``, id),
     jsDoc?.comment
@@ -277,7 +277,7 @@ const strictObjectBody = (
   const propertiesOverview = Object.entries(node.elements)
     .map(([key, config]) => {
       const propertyPropertyPath = `${propertyPath}/${key}`
-      const title = `\`${key}${config.required ? "" : "?"}\``
+      const title = `\`${key}${config.isRequired ? "" : "?"}\``
 
       return [
         title,
@@ -297,7 +297,7 @@ const strictObjectBody = (
         [key, propertyNode]
       ) => {
         const propertyPropertyPath = `${propertyPath}/${key}`
-        const title = h(4, `\`${key}${propertyNode.required ? "" : "?"}\``, propertyPropertyPath)
+        const title = h(4, `\`${key}${propertyNode.isRequired ? "" : "?"}\``, propertyPropertyPath)
 
         if (propertyNode.value.kind === NodeKind.Record) {
           return {

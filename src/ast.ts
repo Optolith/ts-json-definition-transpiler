@@ -27,6 +27,9 @@ export namespace JSDoc {
     uniqueItems: "boolean",
   } as const
 
+  /**
+   * A dictionary from all supported tag names to their value types.
+   */
   export type TagValueTypes = typeof tagValueTypes
 
   type TypeStringType = {
@@ -37,11 +40,21 @@ export namespace JSDoc {
   }
 
   type TagValueActualTypes = {
-    [K in keyof TagValueTypes]?: TypeStringType[TagValueTypes[K]]
+    -readonly [K in keyof TagValueTypes]?: TypeStringType[TagValueTypes[K]]
   }
 
-  export type Type = {
+  /**
+   * The parsed JSDoc annotations for a node.
+   */
+  export type T = {
+    /**
+     * The initial description text.
+     */
     comment?: string
+
+    /**
+     * A dictionary of supported tags (`@tag`) with parsed values, if present.
+     */
     tags: TagValueActualTypes
   }
 
@@ -72,7 +85,7 @@ export namespace JSDoc {
     parseTagComment(tag.tagName.text as keyof TagValueActualTypes, commentToString(tag.comment))
   ]
 
-  const jsDocToCustom = (jsDoc: ts.JSDoc | undefined): Type | undefined => {
+  const jsDocToCustom = (jsDoc: ts.JSDoc | undefined): T | undefined => {
     if (jsDoc) {
       const comment = commentToString(jsDoc.comment)
       const tags = jsDoc.tags?.map(tagToCustom) ?? []
@@ -83,10 +96,22 @@ export namespace JSDoc {
     }
   }
 
-  export const ofNode = (node: ts.Node): Type | undefined =>
+  /**
+   * Get the JSDoc from a node, if present.
+   *
+   * @param node - The node to get the JSDoc from.
+   * @returns The parsed JSDoc, if any.
+   */
+  export const ofNode = (node: ts.Node): T | undefined =>
     jsDocToCustom(node.getChildren().filter(ts.isJSDoc).slice(-1)[0])
 
-  export const ofModule = (file: ts.SourceFile): Type | undefined => {
+  /**
+   * Get the JSDoc from the file/module.
+   *
+   * @param file - The file/module to get the JSDoc from.
+   * @returns The parsed JSDoc, if any.
+   */
+  export const ofModule = (file: ts.SourceFile): T | undefined => {
     const firstNode = file.statements[0]
 
     if (firstNode) {
@@ -102,6 +127,9 @@ export namespace JSDoc {
   }
 }
 
+/**
+ * The possible discriminator values to differenciate the different nodes.
+ */
 export enum NodeKind {
   Main,
   Group,
@@ -116,43 +144,87 @@ export enum NodeKind {
   Tuple,
 }
 
+/**
+ * The possible discriminator values to differenciate the different tokens.
+ */
 export enum TokenKind {
   String,
   Number,
   Boolean,
 }
 
+/**
+ * A grouped/namespaced set of declarations.
+ */
 export type GroupNode = {
   kind: NodeKind.Group
-  jsDoc?: JSDoc.Type
+  jsDoc?: JSDoc.T
+
+  /**
+   * All elements within, keyed by their identifier.
+   */
   elements: {
     [identifier: string]: ChildNode
   }
 }
 
+/**
+ * An object with a fixed set of keys, which may have different value types.
+ */
 export type RecordNode = {
   kind: NodeKind.Record
-  jsDoc?: JSDoc.Type
+  jsDoc?: JSDoc.T
+
+  /**
+   * All properties, keyed by the property name.
+   */
   elements: {
     [identifier: string]: {
-      jsDoc?: JSDoc.Type
-      required: boolean
+      jsDoc?: JSDoc.T
+
+      /**
+       * Is the property required?
+       */
+      isRequired: boolean
+
+      /**
+       * The property value.
+       */
       value: ChildNode
     }
   }
 }
 
+/**
+ * An object with a variable set of keys with the same value type. The keys may
+ * be restricted to match a certain regular expression.
+ */
 export type DictionaryNode = {
   kind: NodeKind.Dictionary
-  jsDoc?: JSDoc.Type
+  jsDoc?: JSDoc.T
+
+  /**
+   * The value type at all defined keys.
+   */
   elements: ChildNode
+
+  /**
+   * An optional pattern in regular expression syntax all keys must match.
+   */
   pattern?: string
 }
 
+/**
+ * A primitive type.
+ */
 export type TokenNode = {
   kind: NodeKind.Token
+  jsDoc?: JSDoc.T
+
+  /**
+   * The specific primitive type.
+   */
   token: TokenKind
-  jsDoc?: JSDoc.Type
 }
 
 export type ParentGroup = {
@@ -167,48 +239,118 @@ export type ParentGroup = {
 export const parentGroupToArray = (group: ParentGroup | undefined): string[] =>
   group === undefined ? [] : [...parentGroupToArray(group.parentGroup), group.name]
 
+/**
+ * A reference to another type.
+ */
 export type ReferenceNode = {
   kind: NodeKind.Reference
-  jsDoc?: JSDoc.Type
+  jsDoc?: JSDoc.T
+
+  /**
+   * The name of the referenced type.
+   */
   name: string
+
+  /**
+   * The groups or namespaces the type is in, if any. The linked list starts at
+   * the innermost group or namespace; the last element is the outermost group
+   * or namespace.
+   */
   parentGroup?: ParentGroup
+
+  /**
+   * The relative path to the file where the type is specified. It is only
+   * defined if it is different from the file it is referenced from.
+   */
   externalFilePath?: string
 }
 
+/**
+ * A fixed set of possible string or numeric values.
+ */
 export type EnumerationNode = {
   kind: NodeKind.Enumeration
-  jsDoc?: JSDoc.Type
-  cases: {
-    jsDoc?: JSDoc.Type
-    name: string
-    value: string | number
-  }[]
+  jsDoc?: JSDoc.T
+
+  /**
+   * All possible cases.
+   */
+  cases: EnumerationCase[]
 }
 
-export type ArrayNode = {
-  kind: NodeKind.Array
-  jsDoc?: JSDoc.Type
-  elements: ChildNode
-}
+/**
+ * A possible case from an enumeration.
+ */
+export type EnumerationCase = {
+  jsDoc?: JSDoc.T
 
-export type UnionNode = {
-  kind: NodeKind.Union
-  jsDoc?: JSDoc.Type
-  cases: ChildNode[]
-}
+  /**
+   * The case name.
+   */
+  name: string
 
-export type LiteralNode = {
-  kind: NodeKind.Literal
-  jsDoc?: JSDoc.Type
+  /**
+   * The value the case represents.
+   */
   value: string | number
 }
 
+/**
+ * An array of elements of the same type.
+ */
+export type ArrayNode = {
+  kind: NodeKind.Array
+  jsDoc?: JSDoc.T
+
+  /**
+   * The type of all elements.
+   */
+  elements: ChildNode
+}
+
+/**
+ * A set of possible types.
+ */
+export type UnionNode = {
+  kind: NodeKind.Union
+  jsDoc?: JSDoc.T
+
+  /**
+   * The list of all possible types.
+   */
+  cases: ChildNode[]
+}
+
+/**
+ * A constant value.
+ */
+export type LiteralNode = {
+  kind: NodeKind.Literal
+  jsDoc?: JSDoc.T
+
+  /**
+   * The constant value.
+   */
+  value: string | number
+}
+
+/**
+ * A tuple of elements that may have different types.
+ */
 export type TupleNode = {
   kind: NodeKind.Tuple
-  jsDoc?: JSDoc.Type
+  jsDoc?: JSDoc.T
+
+  /**
+   * The types of the different elements of the tuple. Each node index
+   * corresponds with the index in the tuple.
+   */
   elements: ChildNode[]
 }
 
+/**
+ * A supported type node in a TypeScript file.
+ */
 export type ChildNode =
   | GroupNode
   | RecordNode
@@ -221,9 +363,16 @@ export type ChildNode =
   | LiteralNode
   | TupleNode
 
+/**
+ * The file root node.
+ */
 export type RootNode = {
   kind: NodeKind.Main
-  jsDoc?: JSDoc.Type
+  jsDoc?: JSDoc.T
+
+  /**
+   * All top-level type declarations.
+   */
   elements: {
     [identifier: string]: ChildNode
   }
@@ -329,7 +478,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
                   propertyNameToString(member.name),
                   {
                     jsDoc: JSDoc.ofNode(member),
-                    required: member.questionToken === undefined,
+                    isRequired: member.questionToken === undefined,
                     value: nodeToAst(member.type!, checker, typeArguments)
                   }
                 ]
@@ -536,6 +685,14 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
   }
 }
 
+/**
+ * Convert a file parsed by the TypeScript compiler to an instance of the custom
+ * abstract syntax tree.
+ *
+ * @param file - The parsed file.
+ * @param checker - An instance of the type checker associate with the current set of source files.
+ * @returns The custom AST build from the parsed file.
+ */
 export const fileToAst = (file: ts.SourceFile, checker: ts.TypeChecker): RootNode => {
   const jsDoc = JSDoc.ofModule(file)
 

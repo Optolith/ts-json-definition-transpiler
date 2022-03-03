@@ -130,7 +130,7 @@ export interface JsonSchema extends Annotated {
   }
 }
 
-const toAnnotations = (jsDoc: JSDoc.Type | undefined) => ({
+const toAnnotations = (jsDoc: JSDoc.T | undefined) => ({
   title: jsDoc?.tags.title,
   description: jsDoc?.comment,
 })
@@ -155,7 +155,7 @@ const constraintsByType: IgnoreValueEach<ConstraintsByType> = {
   array: { minItems: 0, maxItems: 0, uniqueItems: 0 },
 }
 
-const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: JSDoc.Type | undefined, type: T): ConstraintsByType[T] =>
+const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: JSDoc.T | undefined, type: T): ConstraintsByType[T] =>
   Object.fromEntries(
     jsDoc
       ? (Object.keys(constraintsByType[type]) as (keyof ConstraintsByType[T])[])
@@ -182,7 +182,7 @@ const nodeToDefinition = (node: ChildNode): Definition => {
           Object.entries(node.elements)
             .map(([key, config]) => [key, nodeToDefinition(config.value)])),
         required: Object.entries(node.elements)
-          .filter(([_, config]) => config.required)
+          .filter(([_, config]) => config.isRequired)
           .map(([key]) => key),
         ...toConstraints(node.jsDoc, "object"),
         additionalProperties: false
