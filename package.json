@@ -7,9 +7,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "release": "standard-version",
-    "start": "ts-node-transpile-only src/main.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "release": "standard-version"
   },
   "author": "Lukas Obermann",
   "license": "MPL-2.0",
@@ -26,5 +24,6 @@
   },
   "bugs": {
     "url": "https://github.com/elyukai/optolith-tsjsonschemamd/issues"
-  }
+  },
+  "type": "module"
 }
