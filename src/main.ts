@@ -100,7 +100,7 @@ export type GeneratorOptions = {
    * A predicate that if defined only outputs files for the source files that
    * match the predicate.
    */
-  filterFile?: (fileName: string) => boolean
+  fileNamePredicate?: (fileName: string) => boolean
 }
 
 /**
@@ -116,7 +116,7 @@ export const generate = (options: GeneratorOptions): void => {
     outputs,
     dumpAst = false,
     clean = false,
-    filterFile,
+    fileNamePredicate,
   } = options
 
   const flattenTypeScriptFileNamesFromDir = (dirPath: string): string[] => {
@@ -157,8 +157,8 @@ export const generate = (options: GeneratorOptions): void => {
     .filter(file => tsFiles.includes(file.fileName))
 
   const filteredFiles =
-    filterFile
-    ? rootFiles.filter(file => filterFile(file.fileName))
+    fileNamePredicate
+    ? rootFiles.filter(file => fileNamePredicate(file.fileName))
     : rootFiles
 
   console.log(`Generating files for ${filteredFiles.length} input file(s) and ${outputs.length} output format(s) ...`)
