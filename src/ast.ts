@@ -331,7 +331,7 @@ export type LiteralNode = {
   /**
    * The constant value.
    */
-  value: string | number
+  value: string | number | boolean
 }
 
 /**
@@ -660,11 +660,29 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
   else if (ts.isLiteralTypeNode(node)) {
     const jsDoc = JSDoc.ofNode(node.parent)
 
+    const isBooleanLiteral =
+      (literal: ts.LiteralTypeNode["literal"]): literal is ts.BooleanLiteral =>
+        literal.kind === ts.SyntaxKind.TrueKeyword || literal.kind === ts.SyntaxKind.FalseKeyword
+
     if (ts.isStringLiteral(node.literal)) {
       return {
         kind: NodeKind.Literal,
         jsDoc,
-        value: node.literal.text
+        value: node.literal.text,
+      }
+    }
+    else if (ts.isNumericLiteral(node.literal)) {
+      return {
+        kind: NodeKind.Literal,
+        jsDoc,
+        value: Number.parseFloat(node.literal.text),
+      }
+    }
+    else if (isBooleanLiteral(node.literal)) {
+      return {
+        kind: NodeKind.Literal,
+        jsDoc,
+        value: node.literal.kind === ts.SyntaxKind.TrueKeyword,
       }
     }
     else {
