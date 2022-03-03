@@ -1,5 +1,6 @@
 import { EOL } from "os"
-import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "./ast"
+import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "../ast"
+import { AstTransformer, Renderer } from "../main"
 
 const h = (level: number, text: string, anchor?: string) => {
   const safeLevel = level < 1 ? 1 : level > 6 ? 6 : level
@@ -416,9 +417,7 @@ const definitionToMarkdown = (
   }
 }
 
-const logr = <T>(x: T): T => (console.log(JSON.stringify(x, undefined, 2)), x)
-
-export const astToMarkdown = (file: RootNode): string => {
+const astToMarkdown: AstTransformer = file => {
   const ref = file.jsDoc?.tags.main !== undefined ? file.elements[file.jsDoc?.tags.main] : undefined
 
   const definitions = Object.entries(file.elements)
@@ -433,3 +432,8 @@ export const astToMarkdown = (file: RootNode): string => {
     ...definitions
   ].join(EOL + EOL) + EOL
 }
+
+export const markdownRenderer: Renderer = Object.freeze({
+  transformer: astToMarkdown,
+  fileExtension: ".md",
+})

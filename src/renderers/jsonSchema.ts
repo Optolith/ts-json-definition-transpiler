@@ -1,5 +1,7 @@
 import { EOL } from "os"
-import { ChildNode, JSDoc, NodeKind, parentGroupToArray, RootNode, TokenKind } from "./ast"
+import { sep } from "path"
+import { ChildNode, JSDoc, NodeKind, parentGroupToArray, TokenKind } from "../ast"
+import { AstTransformer, Renderer } from "../main"
 
 /**
  * Descriptive annotations of the JSON type definition
@@ -287,19 +289,25 @@ const nodeToDefinition = (node: ChildNode): Definition => {
   }
 }
 
-export const astToJsonSchema = (file: RootNode, schemaFileName: string): JsonSchema => {
+const toForwardSlashPath = (path: string) => path.split(sep).join("/")
+
+const astToJsonSchema: AstTransformer = (file, { relativePath }): string => {
   const mainType = file.jsDoc?.tags.main
 
-  return {
+  const jsonSchema = {
     $schema: "http://json-schema.org/draft-07/schema",
-    $id: schemaFileName,
+    $id: toForwardSlashPath(relativePath),
     $ref: mainType ? `#/definitions/${mainType}` : mainType,
     definitions: Object.fromEntries(
       Object.entries(file.elements)
         .map(([key, node]) => [key, nodeToDefinition(node)])
     )
   }
+
+  return `${JSON.stringify(jsonSchema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
 }
 
-export const jsonSchemaToFileContent = (schema: JsonSchema): string =>
-  `${JSON.stringify(schema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
+export const jsonSchemaRenderer: Renderer = Object.freeze({
+  transformer: astToJsonSchema,
+  fileExtension: ".schema.json",
+})

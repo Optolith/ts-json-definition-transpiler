@@ -1,41 +1,45 @@
 import { Dirent, mkdirSync, readdirSync, writeFileSync } from "fs"
 import { basename, dirname, extname, format, join, relative, sep } from "path"
 import * as ts from "typescript"
-import { fileToAst } from "./ast"
-import { astToJsonSchema, jsonSchemaToFileContent } from "./jsonSchema"
-import { astToMarkdown } from "./markdown"
+import { fileToAst, RootNode } from "./ast"
+import { jsonSchemaRenderer } from "./renderers/jsonSchema"
+import { markdownRenderer } from "./renderers/markdown"
 
-const getOptionValue = (name: string) => {
-  const index = process.argv.indexOf(name)
-
-  if (index > -1) {
-    return process.argv[index + 1]
-  }
+export type MetaInformation = {
+  absolutePath: string
+  relativePath: string
 }
 
-const tsDir = getOptionValue("--tsdir")
-const jsonSchemaDir = getOptionValue("--jsondir")
-const mdDir = getOptionValue("--mddir")
-const debug = process.argv.includes("--debug")
+export type AstTransformer = (ast: RootNode, meta: MetaInformation) => string
 
-if (!tsDir || !jsonSchemaDir || !mdDir) {
-  console.log(`\
-Usage:
-
-node -r ts-node/register/transpile-only src/main.ts --tsdir "src/entity" --jsondir "json" --mddir "docs"`)
+export type Renderer = {
+  transformer: AstTransformer
+  fileExtension: string
 }
-else {
-  const fromCLIPath = (path: string) => join(...path.split(/[\/\\]/))
-  const toForwardSlashPath = (path: string) => path.split(sep).join("/")
 
-  const toAbsolutePath = (relativePath: string) => join(__dirname, "..", relativePath)
+export type Output = {
+  folder: string
+  renderer: Renderer
+}
 
-  const absolutePathFromCLI = (path: string) => toAbsolutePath(fromCLIPath(path))
+export const defaultRenderers = {
+  jsonSchema: jsonSchemaRenderer,
+  markdown: markdownRenderer,
+}
 
-  const typesRootPath = absolutePathFromCLI(tsDir)
-  const jsonSchemaRootPath = absolutePathFromCLI(jsonSchemaDir)
-  const markdownRootPath = absolutePathFromCLI(mdDir)
+export type GeneratorOptions = {
+  sourceDirectory: string
+  outputConfig: Output[]
+  debug?: boolean
+  filterFiles?: (fileName: string) => boolean
+}
 
+export const generate = ({
+  sourceDirectory,
+  outputConfig,
+  debug = false,
+  filterFiles,
+}: GeneratorOptions): void => {
   const flattenTypeScriptFileNamesFromDir = (dirPath: string): string[] => {
     const dirEntryToFilePath = (dirEntry: Dirent) =>
       join(dirPath, dirEntry.name).split(sep).join("/")
@@ -54,54 +58,62 @@ else {
       })
   }
 
-  const tsFiles = flattenTypeScriptFileNamesFromDir(typesRootPath)
+  const tsFiles = flattenTypeScriptFileNamesFromDir(sourceDirectory)
 
   const program = ts.createProgram(tsFiles, { strict: true })
 
   // KEEP ALWAYS, SIDE EFFECT: it fills the parent references of nodes
   const checker = program.getTypeChecker()
 
-  mkdirSync(jsonSchemaRootPath, { recursive: true })
-  mkdirSync(markdownRootPath,   { recursive: true })
+  outputConfig.forEach(({ folder }) => mkdirSync(folder, { recursive: true }))
 
-  program
+  const rootFiles = program
     .getSourceFiles()
     .filter(file => tsFiles.includes(file.fileName))
-    // .filter(file => file.fileName.includes("Curse"))
-    .forEach(file => {
-      const relativePath = relative(typesRootPath, file.fileName)
-      const dir          = dirname(relativePath)
-      const name         = basename(relativePath, ".ts")
 
-      const jsonSchemaDir = join(jsonSchemaRootPath, dir)
-      const markdownDir   = join(markdownRootPath, dir)
+  const filteredFiles =
+    filterFiles
+    ? rootFiles.filter(file => filterFiles(file.fileName))
+    : rootFiles
 
-      mkdirSync(jsonSchemaDir, { recursive: true })
-      mkdirSync(markdownDir,   { recursive: true })
+  filteredFiles.forEach(file => {
+    const relativePath = relative(sourceDirectory, file.fileName)
+    const dir          = dirname(relativePath)
+    const name         = basename(relativePath, ".ts")
 
-      const jsonSchemaFilePath = format({ dir: jsonSchemaDir, name, ext: ".schema.json" })
-      const jsonSchemaId       = toForwardSlashPath(relative(jsonSchemaRootPath, jsonSchemaFilePath))
-      const markdownFilePath   = format({ dir: markdownDir,   name, ext: ".md" })
+    try {
+      const ast = fileToAst(file, checker)
 
-      try {
-        const ast    = fileToAst(file, checker)
-        const schema = jsonSchemaToFileContent(astToJsonSchema(ast, jsonSchemaId))
-        const docs   = astToMarkdown(ast)
-
-        if (debug) {
-          writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
-        }
-
-        writeFileSync(jsonSchemaFilePath, schema)
-        writeFileSync(markdownFilePath, docs)
-      } catch (error) {
-        if (error instanceof Error) {
-          error.message = `${error.message} in TS file "${file.fileName}"`
-          throw error
-        }
-        else {
-          throw error
-        }
+      if (debug) {
+        writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
       }
-    })
+
+      outputConfig.forEach(({ folder, renderer: { transformer, fileExtension } }) => {
+        const outputDir = join(folder, dir)
+
+        mkdirSync(outputDir, { recursive: true })
+
+        const outputAbsoluteFilePath = format({ dir: outputDir, name, ext: fileExtension })
+        const outputRelativeFilePath = relative(folder, outputAbsoluteFilePath)
+
+        const output = transformer(
+          ast,
+          {
+            absolutePath: outputAbsoluteFilePath,
+            relativePath: outputRelativeFilePath,
+          }
+        )
+
+        writeFileSync(outputAbsoluteFilePath, output)
+      })
+    } catch (error) {
+      if (error instanceof Error) {
+        error.message = `${error.message} in TS file "${file.fileName}"`
+        throw error
+      }
+      else {
+        throw error
+      }
+    }
+  })
 }
