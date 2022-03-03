@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.4.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.3.5...v0.4.0) (2022-03-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename filterFile option to fileNamePredicate
+
+* rename filterFile option to fileNamePredicate ([10689cd](https://github.com/elyukai/optolith-tsjsonschemamd/commit/10689cdb396ab17eff98b0d75c6c1081838d9fb2))
+
 ### [0.3.4](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.3.3...v0.3.4) (2022-03-03)
 
 
