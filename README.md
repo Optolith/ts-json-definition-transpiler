@@ -10,13 +10,39 @@ The main issue for JSON Schema with the existing solutions is that the converter
 
 The main issue for Markdown with the existing solutions is that if you convert from TypeScript, they usually target developers, and if you convert from Markdown, the output has a lot of files or does not support the full JSON Schema feature set.
 
-## Usage
+## Installation
 
 ```sh
-npm start -- --tsdir "../src/entity" --jsondir "../schema" --mddir "../docs/reference"
+npm i -D optolith-tsjsonschemamd
 ```
 
-The tool takes all TypeScript files from the source directory `tsdir` and outputs a JSON Schema to `jsondir` and a Markdown file to `mddir` for each file. All three options can point to the same folder. It does not do any cleanup, it only overwrites existing files. Types that are referenced from other files are also referenced this way in JSON Schema and Markdown, so that the output is a mirror of the TypeScript files without any duplicate definitions in both JSON Schema and Markdown. Not that all types must be present in the specified directory, otherwise references/links in JSON schema and Markdown will not work.
+## Usage
+
+```ts
+import { defaultRenderers, generate } from "optolith-tsjsonschemamd";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
+const root = dirname(fileURLToPath(import.meta.url))
+
+generate({
+  sourceDirectory: join(root, "src"),
+  outputConfig: [
+    {
+      renderer: defaultRenderers.jsonSchema,
+      folder: join(root, "schema")
+    },
+    {
+      renderer: defaultRenderers.markdown,
+      folder: join(root, "docs", "reference")
+    }
+  ]
+})
+```
+
+The tool takes all TypeScript files from the `sourceDirectory` and then runs each TypeScript file inside through each output configuration. Built-in output renderers are for JSON Schema definitions and Markdown documentation, so all you need to do is to specify absolute folder paths for them and import them from the module. It does not do any cleanup, it only overwrites existing files. Types that are referenced from other files are also referenced this way in JSON Schema and Markdown, so that the output is a mirror of the TypeScript files without any duplicate definitions in both JSON Schema and Markdown. Note that all types must be present in the specified directory or its subdirectories, otherwise references/links in JSON schema and Markdown will not work.
+
+You can also build your own renderer by conforming to the `Renderer` type that can be imported.
 
 An error is thrown if the tool encounters an unsupported structure.
 
