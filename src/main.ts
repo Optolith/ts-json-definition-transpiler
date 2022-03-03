@@ -1,9 +1,9 @@
 import { Dirent, mkdirSync, readdirSync, writeFileSync } from "fs"
 import { basename, dirname, extname, format, join, relative, sep } from "path"
 import * as ts from "typescript"
-import { fileToAst, RootNode } from "./ast"
-import { jsonSchemaRenderer } from "./renderers/jsonSchema"
-import { markdownRenderer } from "./renderers/markdown"
+import { fileToAst, RootNode } from "./ast.js"
+import { jsonSchemaRenderer } from "./renderers/jsonSchema.js"
+import { markdownRenderer } from "./renderers/markdown.js"
 
 export type MetaInformation = {
   absolutePath: string

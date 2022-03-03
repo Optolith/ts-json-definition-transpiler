@@ -1,7 +1,7 @@
 import { EOL } from "os"
 import { sep } from "path"
-import { ChildNode, JSDoc, NodeKind, parentGroupToArray, TokenKind } from "../ast"
-import { AstTransformer, Renderer } from "../main"
+import { ChildNode, JSDoc, NodeKind, parentGroupToArray, TokenKind } from "../ast.js"
+import { AstTransformer, Renderer } from "../main.js"
 
 /**
  * Descriptive annotations of the JSON type definition

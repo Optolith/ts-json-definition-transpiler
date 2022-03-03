@@ -1,6 +1,6 @@
 import { EOL } from "os"
-import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "../ast"
-import { AstTransformer, Renderer } from "../main"
+import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "../ast.js"
+import { AstTransformer, Renderer } from "../main.js"
 
 const h = (level: number, text: string, anchor?: string) => {
   const safeLevel = level < 1 ? 1 : level > 6 ? 6 : level
