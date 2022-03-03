@@ -1,6 +1,6 @@
 import { Dirent, mkdirSync, readdirSync, writeFileSync } from "fs"
 import { basename, dirname, extname, format, join, relative, sep } from "path"
-import * as ts from "typescript"
+import ts from "typescript"
 import { fileToAst, RootNode } from "./ast.js"
 import { jsonSchemaRenderer } from "./renderers/jsonSchema.js"
 import { markdownRenderer } from "./renderers/markdown.js"
