@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.2.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.1.0...v0.2.0) (2022-03-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* switch to esm
+
+### build
+
+* switch to esm ([940002c](https://github.com/elyukai/optolith-tsjsonschemamd/commit/940002cc8b34915fdf72f2f2b90b3de3e790035e))
+
 ## [0.1.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.0.5...v0.1.0) (2022-03-03)
 
 
