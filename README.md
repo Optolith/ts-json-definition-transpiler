@@ -107,3 +107,7 @@ type Dictionary = {
 ### Generics
 
 Generics are **supported in a limited way**. You can use them, but since they are not supported in JSON Schema, the output is different: The declarations of types with generics are not output, instead, all locations where this generic type is used are resolved as if you had declared the type directly, without generics. This already happens at the custom AST level, so even if you use the AST for your own format, you'll not get information about generics.
+
+## Examples
+
+You can check out the [Optolith flat-file database schema repository](https://github.com/elyukai/optolith-database-schema), which it has been mainly written for.
