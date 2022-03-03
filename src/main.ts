@@ -81,7 +81,7 @@ export type GeneratorOptions = {
    * a JSON file. So for a `Source.ts` file, a corresponding
    * `Source.ts.ast.json` file will be generated in the same folder.
    */
-  debug?: boolean
+  dumpAst?: boolean
 
   /**
    * A predicate that if defined only outputs files for the source files that
@@ -101,7 +101,7 @@ export const generate = (options: GeneratorOptions): void => {
   const {
     sourceDir,
     outputs,
-    debug = false,
+    dumpAst = false,
     filterFile,
   } = options
 
@@ -141,15 +141,19 @@ export const generate = (options: GeneratorOptions): void => {
     ? rootFiles.filter(file => filterFile(file.fileName))
     : rootFiles
 
+  console.log(`Generating files for ${filteredFiles.length} input file(s) and ${outputs.length} output format(s) ...`)
+
   filteredFiles.forEach(file => {
     const relativePath = relative(sourceDir, file.fileName)
     const dir          = dirname(relativePath)
     const name         = basename(relativePath, ".ts")
 
     try {
+      console.log(`Generating output for "${relativePath}" ...`)
+
       const ast = fileToAst(file, checker)
 
-      if (debug) {
+      if (dumpAst) {
         writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
       }
 
@@ -170,6 +174,8 @@ export const generate = (options: GeneratorOptions): void => {
         )
 
         writeFileSync(outputAbsoluteFilePath, output)
+
+        console.log(`-> ${outputAbsoluteFilePath}`)
       })
     } catch (error) {
       if (error instanceof Error) {
@@ -181,4 +187,6 @@ export const generate = (options: GeneratorOptions): void => {
       }
     }
   })
+
+  console.log(`Generating ${filteredFiles.length * outputs.length} output file(s) finished successfully.`)
 }
