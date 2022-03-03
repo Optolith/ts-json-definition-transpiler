@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.3.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.2.3...v0.3.0) (2022-03-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* rename configuration options
+
+* rename configuration options ([fe0c124](https://github.com/elyukai/optolith-tsjsonschemamd/commit/fe0c12413a3d173cb51d1031f356b7934f85c80c))
+
 ### [0.2.3](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.2.2...v0.2.3) (2022-03-03)
 
 
