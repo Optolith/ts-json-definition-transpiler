@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.3](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.2.2...v0.2.3) (2022-03-03)
+
+
+### Bug Fixes
+
+* import typescript as default import ([d37fde5](https://github.com/elyukai/optolith-tsjsonschemamd/commit/d37fde549959cce12de66e27fd007007ad72e02a))
+
 ### [0.2.1](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.2.0...v0.2.1) (2022-03-03)
 
 
