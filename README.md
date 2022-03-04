@@ -19,7 +19,7 @@ npm i -D optolith-tsjsonschemamd
 ## Usage
 
 ```ts
-import { defaultRenderers, generate } from "optolith-tsjsonschemamd";
+import { generate } from "optolith-tsjsonschemamd";
 import { jsonSchema, markdown } from "optolith-tsjsonschemamd/renderers";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
