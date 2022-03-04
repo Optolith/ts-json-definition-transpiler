@@ -2,10 +2,16 @@
   "name": "optolith-tsjsonschemamd",
   "version": "0.5.0",
   "description": "A tool for generating both JSON Schema definitions and Markdown documentation from TypeScript files.",
-  "main": "lib/main.js",
+  "main": "./lib/main.js",
   "exports": {
     ".": "./lib/main.js",
     "./renderers": "./lib/renderers.js"
+  },
+  "types": "./lib/main.d.ts",
+  "typesVersions": {
+    "*": {
+      "renderers": ["./lib/renderers.d.ts"]
+    }
   },
   "scripts": {
     "build": "tsc",
