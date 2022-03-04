@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.5.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.4.1...v0.5.0) (2022-03-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* add implemented renderers as new export
+* rename output folder to targetDir
+
+* add implemented renderers as new export ([069be12](https://github.com/elyukai/optolith-tsjsonschemamd/commit/069be12d60559e219ba9bec06f5fef8a2ce2e7f5))
+* rename output folder to targetDir ([a64c82f](https://github.com/elyukai/optolith-tsjsonschemamd/commit/a64c82fa227b835763bdc0931454494ca2f6b466))
+
 ### [0.4.1](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.4.0...v0.4.1) (2022-03-03)
 
 
