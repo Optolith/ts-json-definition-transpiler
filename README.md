@@ -20,6 +20,7 @@ npm i -D optolith-tsjsonschemamd
 
 ```ts
 import { defaultRenderers, generate } from "optolith-tsjsonschemamd";
+import { jsonSchema, markdown } from "optolith-tsjsonschemamd/renderers";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
@@ -30,11 +31,11 @@ generate({
   outputs: [
     {
       targetDir: join(root, "schema"),
-      renderer: defaultRenderers.jsonSchema
+      renderer: jsonSchema
     },
     {
       targetDir: join(root, "docs", "reference"),
-      renderer: defaultRenderers.markdown
+      renderer: markdown
     }
   ]
 })
