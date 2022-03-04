@@ -1,2 +1,5 @@
+.github
+.versionrc.json
+.vscode
 src
 tsconfig.json
