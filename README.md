@@ -29,12 +29,12 @@ generate({
   sourceDir: join(root, "src"),
   outputs: [
     {
-      renderer: defaultRenderers.jsonSchema,
-      folder: join(root, "schema")
+      targetDir: join(root, "schema"),
+      renderer: defaultRenderers.jsonSchema
     },
     {
-      renderer: defaultRenderers.markdown,
-      folder: join(root, "docs", "reference")
+      targetDir: join(root, "docs", "reference"),
+      renderer: defaultRenderers.markdown
     }
   ]
 })

@@ -46,7 +46,7 @@ export type Output = {
   /**
    * The absolute folder path rendered files should be written to.
    */
-  folder: string
+  targetDir: string
 
   /**
    * The renderer configuration.
@@ -144,12 +144,12 @@ export const generate = (options: GeneratorOptions): void => {
   // KEEP ALWAYS, SIDE EFFECT: it fills the parent references of nodes
   const checker = program.getTypeChecker()
 
-  outputs.forEach(({ folder, clean: cleanSingle }) => {
-    if ((cleanSingle ?? clean) && existsSync(folder)) {
-      rmSync(folder, { recursive: true })
+  outputs.forEach(({ targetDir, clean: cleanSingle }) => {
+    if ((cleanSingle ?? clean) && existsSync(targetDir)) {
+      rmSync(targetDir, { recursive: true })
     }
 
-    mkdirSync(folder, { recursive: true })
+    mkdirSync(targetDir, { recursive: true })
   })
 
   const rootFiles = program
@@ -177,13 +177,13 @@ export const generate = (options: GeneratorOptions): void => {
         writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
       }
 
-      outputs.forEach(({ folder, renderer: { transformer, fileExtension } }) => {
-        const outputDir = join(folder, dir)
+      outputs.forEach(({ targetDir, renderer: { transformer, fileExtension } }) => {
+        const outputDir = join(targetDir, dir)
 
         mkdirSync(outputDir, { recursive: true })
 
         const outputAbsoluteFilePath = format({ dir: outputDir, name, ext: fileExtension })
-        const outputRelativeFilePath = relative(folder, outputAbsoluteFilePath)
+        const outputRelativeFilePath = relative(targetDir, outputAbsoluteFilePath)
 
         const output = transformer(
           ast,
