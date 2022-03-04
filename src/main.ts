@@ -2,8 +2,6 @@ import { Dirent, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } fro
 import { basename, dirname, extname, format, join, relative, sep } from "path"
 import ts from "typescript"
 import { fileToAst, RootNode } from "./ast.js"
-import { jsonSchemaRenderer } from "./renderers/jsonSchema.js"
-import { markdownRenderer } from "./renderers/markdown.js"
 
 export type MetaInformation = {
   /**
@@ -60,14 +58,6 @@ export type Output = {
    */
   clean?: boolean
 }
-
-/**
- * A dictionary of renderers that ship with this package.
- */
-export const defaultRenderers = Object.freeze({
-  jsonSchema: jsonSchemaRenderer,
-  markdown: markdownRenderer,
-})
 
 /**
  * The generator options.

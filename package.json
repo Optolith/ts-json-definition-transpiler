@@ -3,7 +3,10 @@
   "version": "0.4.1",
   "description": "A tool for generating both JSON Schema definitions and Markdown documentation from TypeScript files.",
   "main": "lib/main.js",
-  "types": "lib/main.d.ts",
+  "exports": {
+    ".": "./lib/main.js",
+    "./renderers": "./lib/renderers.js"
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
@@ -18,10 +21,7 @@
     "@types/node": "^17.0.21",
     "standard-version": "^9.3.2"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/elyukai/optolith-tsjsonschemamd.git"
-  },
+  "repository": "github:elyukai/optolith-tsjsonschemamd",
   "bugs": {
     "url": "https://github.com/elyukai/optolith-tsjsonschemamd/issues"
   },
