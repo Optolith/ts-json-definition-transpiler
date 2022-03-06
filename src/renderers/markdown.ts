@@ -281,7 +281,10 @@ const strictObjectBody = (
 
       return [
         title,
-        config.jsDoc?.comment ?? "",
+        config.jsDoc?.comment
+          ?.split("\n\n")[0]
+          ?.replaceAll("\n", " ")
+          ?? "",
         a("See details", namedLink(propertyPropertyPath))
       ].join(" | ")
     })

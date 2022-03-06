@@ -1,3 +1,4 @@
+import { EOL } from "os"
 import ts from "typescript"
 
 export namespace JSDoc {
@@ -59,9 +60,7 @@ export namespace JSDoc {
   }
 
   const commentToString = (comment: string | ts.NodeArray<ts.JSDocComment> | undefined) =>
-    ts.getTextOfJSDocComment(comment)
-      ?.replace(/\r\n(?:\r\n)+/g, "\n\n")
-      .replace(/\r\n/g, " ")
+    ts.getTextOfJSDocComment(comment)?.replaceAll(EOL, "\n")
 
   const parseTagComment = <K extends keyof TagValueActualTypes>(name: K, comment: string | undefined): TagValueActualTypes[K] => {
     const type = tagValueTypes[name]
