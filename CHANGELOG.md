@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.3](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.2...v0.5.3) (2022-03-09)
+
+
+### Features
+
+* support namespaced imports ([c2167ce](https://github.com/elyukai/optolith-tsjsonschemamd/commit/c2167ce2cb049fc57ed10acca12ae709f8b4f55d))
+
 ### [0.5.2](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.1...v0.5.2) (2022-03-06)
 
 
