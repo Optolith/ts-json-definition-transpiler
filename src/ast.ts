@@ -431,6 +431,15 @@ const outerMostGroupName = (group: ParentGroup): string => {
   }
 }
 
+const outerMostQualifiedName = (name: ts.QualifiedName): string => {
+  if (ts.isQualifiedName(name.left)) {
+    return outerMostQualifiedName(name.left)
+  }
+  else {
+    return name.left.text
+  }
+}
+
 const propertyNameToString = (propertyName: ts.PropertyName): string =>
   ts.isComputedPropertyName(propertyName)
     ? propertyName.expression.getText()
@@ -574,17 +583,28 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         return typeArguments[name]!
       }
 
-      const outerMostReference = parentGroup ? outerMostGroupName(parentGroup) : name
+      const outerMostReference =
+        parentGroup
+        ? outerMostGroupName(parentGroup)
+        : name
+
+      const alternativeOuterMostReference =
+        ts.isQualifiedName(node.typeName)
+        ? outerMostQualifiedName(node.typeName)
+        : undefined
 
       const importNodes = node.getSourceFile().statements.filter(ts.isImportDeclaration)
 
       const matchingImportNode = importNodes.find(importNode => {
-        const namedBindings = importNode.importClause?.namedBindings
-
-        if (namedBindings && ts.isNamedImports(namedBindings)) {
-          return namedBindings.elements.some(
-            namedBinding => namedBinding.name.escapedText === outerMostReference
-          )
+        if (importNode.importClause?.namedBindings) {
+          if (ts.isNamedImports(importNode.importClause.namedBindings)) {
+            return importNode.importClause.namedBindings.elements.some(
+              namedBinding => namedBinding.name.escapedText === outerMostReference
+            )
+          }
+          else {
+            return importNode.importClause.namedBindings.name.text === alternativeOuterMostReference
+          }
         }
         else {
           return false
