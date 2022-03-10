@@ -538,37 +538,32 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     const symbol = checker.getSymbolAtLocation(node.typeName)
 
     if (node.typeArguments && node.typeArguments.length > 0) {
-      if (ts.isTypeAliasDeclaration(node.parent)) {
-        const nodeWithTypeParameters = symbol?.declarations?.[0]!
+      const nodeWithTypeParameters = symbol?.declarations?.[0]!
 
-        const typeParameters = (() => {
-          if (ts.isTypeAliasDeclaration(nodeWithTypeParameters)) {
-            return nodeWithTypeParameters.typeParameters ?? []
-          }
-          else {
-            throw new Error(`resolving type parameters from referenced node of type "${ts.SyntaxKind[nodeWithTypeParameters.kind]}" is currently not supported`)
-          }
-        })()
-
-        const newTypeArguments = node.typeArguments.map(
-          typeNode => nodeToAst(typeNode, checker, typeArguments)
-        )
-
-        if (typeParameters.length !== newTypeArguments.length) {
-          throw new Error(`resolving type parameters failed due to a different number of arguments provided`)
+      const typeParameters = (() => {
+        if (ts.isTypeAliasDeclaration(nodeWithTypeParameters)) {
+          return nodeWithTypeParameters.typeParameters ?? []
         }
+        else {
+          throw new Error(`resolving type parameters from referenced node of type "${ts.SyntaxKind[nodeWithTypeParameters.kind]}" is currently not supported`)
+        }
+      })()
 
-        const newTypeArgumentsMap = Object.fromEntries(
-          typeParameters.map(
-            (key, index) => [key.name.text, newTypeArguments[index]!]
-          )
+      const newTypeArguments = node.typeArguments.map(
+        typeNode => nodeToAst(typeNode, checker, typeArguments)
+      )
+
+      if (typeParameters.length !== newTypeArguments.length) {
+        throw new Error(`resolving type parameters failed due to a different number of arguments provided`)
+      }
+
+      const newTypeArgumentsMap = Object.fromEntries(
+        typeParameters.map(
+          (key, index) => [key.name.text, newTypeArguments[index]!]
         )
+      )
 
-        return nodeToAst(nodeWithTypeParameters, checker, newTypeArgumentsMap)
-      }
-      else {
-        throw new Error(`resolving type parameters from parent node of type "${ts.SyntaxKind[node.parent.kind]}" is currently not supported`)
-      }
+      return nodeToAst(nodeWithTypeParameters, checker, newTypeArgumentsMap)
     }
     else {
       const name = ts.isIdentifier(node.typeName)
@@ -579,10 +574,6 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
 
       const parentGroup = symbol ? traverseAbsoluteParentModules(symbol, checker) : undefined
 
-      if (parentGroup === undefined && name in typeArguments) {
-        return typeArguments[name]!
-      }
-
       const outerMostReference =
         parentGroup
         ? outerMostGroupName(parentGroup)
@@ -592,6 +583,14 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         ts.isQualifiedName(node.typeName)
         ? outerMostQualifiedName(node.typeName)
         : undefined
+
+      if (
+        parentGroup === undefined
+        && alternativeOuterMostReference === undefined
+        && name in typeArguments
+      ) {
+        return typeArguments[name]!
+      }
 
       const importNodes = node.getSourceFile().statements.filter(ts.isImportDeclaration)
 
