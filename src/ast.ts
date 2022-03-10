@@ -717,6 +717,9 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
       elements: node.elements.map(type => nodeToAst(type, checker, typeArguments))
     }
   }
+  else if (ts.isParenthesizedTypeNode(node)) {
+    return nodeToAst(node.type, checker, typeArguments)
+  }
   else {
     throw new Error(`node of type "${ts.SyntaxKind[node.kind]}" is not supported`)
   }
