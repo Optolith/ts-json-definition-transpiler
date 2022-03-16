@@ -1,4 +1,5 @@
 import { EOL } from "os"
+import { extname } from "path"
 import ts from "typescript"
 
 export namespace JSDoc {
@@ -614,12 +615,17 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         .getText()
         .replace(/^["'](.+)["']$/, "$1")
 
+      const extensionlessExternalFilePath =
+        externalFilePath
+        ? externalFilePath.slice(0, -extname(externalFilePath).length)
+        : undefined
+
       return {
         kind: NodeKind.Reference,
         jsDoc,
         name,
         parentGroup,
-        externalFilePath,
+        externalFilePath: extensionlessExternalFilePath,
       }
     }
   }
