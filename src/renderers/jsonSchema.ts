@@ -289,14 +289,14 @@ const nodeToDefinition = (node: ChildNode): Definition => {
   }
 }
 
-const toForwardSlashPath = (path: string) => path.split(sep).join("/")
+const toForwardSlashAbsolutePath = (path: string) => "/" + path.split(sep).join("/")
 
 const astToJsonSchema: AstTransformer = (file, { relativePath }): string => {
   const mainType = file.jsDoc?.tags.main
 
   const jsonSchema = {
     $schema: "http://json-schema.org/draft-07/schema",
-    $id: toForwardSlashPath(relativePath),
+    $id: toForwardSlashAbsolutePath(relativePath),
     $ref: mainType ? `#/definitions/${mainType}` : mainType,
     definitions: Object.fromEntries(
       Object.entries(file.elements)
