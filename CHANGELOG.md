@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.5](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.4...v0.5.5) (2022-03-16)
+
+
+### Bug Fixes
+
+* ignore import specifier extension ([7d2c9ff](https://github.com/elyukai/optolith-tsjsonschemamd/commit/7d2c9ffea7e65292556acb3441954bf32b923cae))
+* relative links to top-level schema ([ca7f49b](https://github.com/elyukai/optolith-tsjsonschemamd/commit/ca7f49b97f70486de6429af5f5b7088258f16dd6))
+
 ### [0.5.4](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.3...v0.5.4) (2022-03-10)
 
 
