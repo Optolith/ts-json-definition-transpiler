@@ -41,7 +41,7 @@ generate({
 })
 ```
 
-`generate` takes all TypeScript files from the absolute `sourceDir` path and its subdirectories and then runs each TypeScript file inside through each output configuration. Built-in output renderers are for JSON Schema definitions and Markdown documentation, so all you need to do is to specify absolute folder paths for them and import them from the module.
+`generate` takes all TypeScript files from the absolute `sourceDir` path and its subdirectories and then runs each TypeScript file inside through each output configuration. Built-in output renderers are for JSON Schema definitions (`draft-07`) and Markdown documentation, so all you need to do is to specify absolute folder paths for them and import them from the module.
 
 It does not do any clean-up in the target directories, it only overwrites existing files. You can activate this explicitly, though, for all outputs and for each output individually.
 
