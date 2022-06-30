@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.9](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.8...v0.5.9) (2022-06-30)
+
+
+### Features
+
+* use https for json schema uris ([343e33c](https://github.com/elyukai/optolith-tsjsonschemamd/commit/343e33c3d7b4f2552cc03695058cc4e83c1cc850))
+
 ### [0.5.8](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.7...v0.5.8) (2022-06-30)
 
 
