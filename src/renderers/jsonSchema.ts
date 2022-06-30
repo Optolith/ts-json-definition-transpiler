@@ -50,12 +50,22 @@ interface Array extends ArrayConstraints, Annotated {
   items: Definition
 }
 
-interface Tuple extends Annotated {
+type Tuple = Tuple07 | Tuple202012
+
+interface Tuple07 extends Annotated {
   type: "array"
   items: Definition[]
   minItems: number
   maxItems: number
   additionalItems: false
+}
+
+interface Tuple202012 extends Annotated {
+  type: "array"
+  prefixItems: Definition[]
+  minItems: number
+  maxItems: number
+  items: false
 }
 
 interface NumberConstraints {
@@ -135,7 +145,6 @@ const toAnnotations = (jsDoc: JSDoc.T | undefined) => ({
   description: jsDoc?.comment,
 })
 
-
 type ConstraintsByType = {
   number: NumberConstraints,
   string: StringConstraints,
@@ -172,7 +181,7 @@ const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: JSDoc.T | undef
       : []
   )
 
-const nodeToDefinition = (node: ChildNode): Definition => {
+const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
   switch (node.kind) {
     case NodeKind.Record: {
       return {
@@ -180,7 +189,7 @@ const nodeToDefinition = (node: ChildNode): Definition => {
         type: "object",
         properties: Object.fromEntries(
           Object.entries(node.elements)
-            .map(([key, config]) => [key, nodeToDefinition(config.value)])),
+            .map(([key, config]) => [key, nodeToDefinition(spec, config.value)])),
         required: Object.entries(node.elements)
           .filter(([_, config]) => config.isRequired)
           .map(([key]) => key),
@@ -194,7 +203,7 @@ const nodeToDefinition = (node: ChildNode): Definition => {
           ...toAnnotations(node.jsDoc),
           type: "object",
           patternProperties: {
-            [node.pattern]: nodeToDefinition(node.elements)
+            [node.pattern]: nodeToDefinition(spec, node.elements)
           },
           ...toConstraints(node.jsDoc, "object"),
           additionalProperties: false
@@ -204,7 +213,7 @@ const nodeToDefinition = (node: ChildNode): Definition => {
         return {
           ...toAnnotations(node.jsDoc),
           type: "object",
-          additionalProperties: nodeToDefinition(node.elements),
+          additionalProperties: nodeToDefinition(spec, node.elements),
           ...toConstraints(node.jsDoc, "object")
         }
       }
@@ -213,7 +222,7 @@ const nodeToDefinition = (node: ChildNode): Definition => {
       return {
         ...toAnnotations(node.jsDoc),
         type: "array",
-        items: nodeToDefinition(node.elements),
+        items: nodeToDefinition(spec, node.elements),
         ...toConstraints(node.jsDoc, "array")
       }
     }
@@ -224,25 +233,37 @@ const nodeToDefinition = (node: ChildNode): Definition => {
       }
     }
     case NodeKind.Tuple: {
-      return {
-        ...toAnnotations(node.jsDoc),
-        type: "array",
-        items: node.elements.map(nodeToDefinition),
-        minItems: node.elements.length,
-        maxItems: node.elements.length,
-        additionalItems: false,
+      switch (spec) {
+        case Spec.Draft_07:
+        case Spec.Draft_2019_09: return {
+          ...toAnnotations(node.jsDoc),
+          type: "array",
+          items: node.elements.map(element => nodeToDefinition(spec, element)),
+          minItems: node.elements.length,
+          maxItems: node.elements.length,
+          additionalItems: false,
+        }
+        case Spec.Draft_2020_12: return {
+          ...toAnnotations(node.jsDoc),
+          type: "array",
+          prefixItems: node.elements.map(element => nodeToDefinition(spec, element)),
+          minItems: node.elements.length,
+          maxItems: node.elements.length,
+          items: false,
+        }
+        default: throw TypeError("invalid spec")
       }
     }
     case NodeKind.Union: {
       return {
         ...toAnnotations(node.jsDoc),
-        oneOf: node.cases.map(nodeToDefinition)
+        oneOf: node.cases.map(element => nodeToDefinition(spec, element))
       }
     }
     case NodeKind.Group: {
       return Object.fromEntries(
         Object.entries(node.elements)
-          .map(([key, node]) => [key, nodeToDefinition(node)])
+          .map(([key, node]) => [key, nodeToDefinition(spec, node)])
       ) as Group
     }
     case NodeKind.Literal: {
@@ -291,23 +312,62 @@ const nodeToDefinition = (node: ChildNode): Definition => {
 
 const toForwardSlashAbsolutePath = (path: string) => "/" + path.split(sep).join("/")
 
-const astToJsonSchema: AstTransformer = (file, { relativePath }): string => {
-  const mainType = file.jsDoc?.tags.main
-
-  const jsonSchema = {
-    $schema: "http://json-schema.org/draft-07/schema",
-    $id: toForwardSlashAbsolutePath(relativePath),
-    $ref: mainType ? `#/definitions/${mainType}` : mainType,
-    definitions: Object.fromEntries(
-      Object.entries(file.elements)
-        .map(([key, node]) => [key, nodeToDefinition(node)])
-    )
-  }
-
-  return `${JSON.stringify(jsonSchema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
+type TransformerOptions = {
+  spec: Spec
 }
 
-export const jsonSchemaRenderer: Renderer = Object.freeze({
-  transformer: astToJsonSchema,
+const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
+  (file, { relativePath }): string => {
+    const mainType = file.jsDoc?.tags.main
+
+    const jsonSchema = {
+      $schema: schemaUri(spec),
+      $id: toForwardSlashAbsolutePath(relativePath),
+      $ref: mainType ? `#/definitions/${mainType}` : mainType,
+      [defsKey(spec)]: Object.fromEntries(
+        Object.entries(file.elements)
+          .map(([key, node]) => [key, nodeToDefinition(spec, node)])
+      )
+    }
+
+    return `${JSON.stringify(jsonSchema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
+  }
+
+enum Spec {
+  Draft_07 = 1,
+  Draft_2019_09 = 2,
+  Draft_2020_12 = 3,
+}
+
+const defsKey = (spec: Spec): string => {
+  switch (spec) {
+    case Spec.Draft_07: return "definitions"
+    case Spec.Draft_2019_09:
+    case Spec.Draft_2020_12: return "$defs"
+    default: throw TypeError("invalid spec")
+  }
+}
+
+const schemaUri = (spec: Spec): string => {
+  switch (spec) {
+    case Spec.Draft_07: return "http://json-schema.org/draft-07/schema"
+    case Spec.Draft_2019_09: return "http://json-schema.org/draft/2019-09/schema"
+    case Spec.Draft_2020_12: return "http://json-schema.org/draft/2020-12/schema"
+    default: throw TypeError("invalid spec")
+  }
+}
+
+type RendererOptions = {
+  /**
+   * The used JSON Schema specification.
+   * @default Spec.Draft_2020_12
+   */
+  spec?: Spec
+}
+
+export const jsonSchemaRenderer = ({
+  spec = Spec.Draft_2020_12
+}: RendererOptions): Renderer => Object.freeze({
+  transformer: astToJsonSchema({ spec }),
   fileExtension: ".schema.json",
 })
