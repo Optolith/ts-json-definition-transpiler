@@ -131,11 +131,20 @@ type Definition =
   | Tuple
   | Group
 
-export interface JsonSchema extends Annotated {
+export interface JsonSchema_07 extends Annotated {
   $schema: string
   $id: string
   $ref?: string
   definitions: {
+    [id: string]: Definition
+  }
+}
+
+export interface JsonSchema_2019_09 extends Annotated {
+  $schema: string
+  $id: string
+  $ref?: string
+  $defs: {
     [id: string]: Definition
   }
 }
@@ -278,7 +287,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
 
       return {
         ...toAnnotations(node.jsDoc),
-        $ref: `${externalFilePath}#/definitions/${qualifiedName}`
+        $ref: `${externalFilePath}#/${defsKey(spec)}/${qualifiedName}`
       }
     }
     case NodeKind.Token: {
@@ -323,7 +332,7 @@ const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
     const jsonSchema = {
       $schema: schemaUri(spec),
       $id: toForwardSlashAbsolutePath(relativePath),
-      $ref: mainType ? `#/definitions/${mainType}` : mainType,
+      $ref: mainType ? `#/${defsKey(spec)}/${mainType}` : mainType,
       [defsKey(spec)]: Object.fromEntries(
         Object.entries(file.elements)
           .map(([key, node]) => [key, nodeToDefinition(spec, node)])
