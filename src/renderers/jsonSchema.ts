@@ -367,7 +367,7 @@ type RendererOptions = {
 
 export const jsonSchemaRenderer = ({
   spec = Spec.Draft_2020_12
-}: RendererOptions): Renderer => Object.freeze({
+}: RendererOptions = {}): Renderer => Object.freeze({
   transformer: astToJsonSchema({ spec }),
   fileExtension: ".schema.json",
 })
