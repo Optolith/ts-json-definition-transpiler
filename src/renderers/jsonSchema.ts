@@ -359,9 +359,9 @@ const defsKey = (spec: Spec): string => {
 
 const schemaUri = (spec: Spec): string => {
   switch (spec) {
-    case Spec.Draft_07: return "http://json-schema.org/draft-07/schema"
-    case Spec.Draft_2019_09: return "http://json-schema.org/draft/2019-09/schema"
-    case Spec.Draft_2020_12: return "http://json-schema.org/draft/2020-12/schema"
+    case Spec.Draft_07: return "https://json-schema.org/draft-07/schema"
+    case Spec.Draft_2019_09: return "https://json-schema.org/draft/2019-09/schema"
+    case Spec.Draft_2020_12: return "https://json-schema.org/draft/2020-12/schema"
     default: throw TypeError("invalid spec")
   }
 }
