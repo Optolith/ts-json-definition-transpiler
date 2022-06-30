@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.6](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.5...v0.5.6) (2022-06-30)
+
+
+### Features
+
+* add support for draft 2019-09 and draft 2020-12 exports ([c1299a4](https://github.com/elyukai/optolith-tsjsonschemamd/commit/c1299a42923b95670cb05f2227947f311413674b))
+
 ### [0.5.5](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.4...v0.5.5) (2022-03-16)
 
 
