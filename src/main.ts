@@ -163,30 +163,36 @@ export const generate = (options: GeneratorOptions): void => {
 
       const ast = fileToAst(file, checker, program)
 
-      if (dumpAst) {
-        writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
+      if (Object.keys(ast.elements).length > 0) {
+        if (dumpAst) {
+          writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
+        }
+
+        outputs.forEach(({ targetDir, renderer: { transformer, fileExtension } }) => {
+          const outputDir = join(targetDir, dir)
+
+          mkdirSync(outputDir, { recursive: true })
+
+          const outputAbsoluteFilePath = format({ dir: outputDir, name, ext: fileExtension })
+          const outputRelativeFilePath = relative(targetDir, outputAbsoluteFilePath)
+
+          const output = transformer(
+            ast,
+            {
+              absolutePath: outputAbsoluteFilePath,
+              relativePath: outputRelativeFilePath,
+            }
+          )
+
+          writeFileSync(outputAbsoluteFilePath, output)
+
+          console.log(`-> ${outputAbsoluteFilePath}`)
+        })
+      }
+      else {
+        console.log(`file does not contain renderable content`)
       }
 
-      outputs.forEach(({ targetDir, renderer: { transformer, fileExtension } }) => {
-        const outputDir = join(targetDir, dir)
-
-        mkdirSync(outputDir, { recursive: true })
-
-        const outputAbsoluteFilePath = format({ dir: outputDir, name, ext: fileExtension })
-        const outputRelativeFilePath = relative(targetDir, outputAbsoluteFilePath)
-
-        const output = transformer(
-          ast,
-          {
-            absolutePath: outputAbsoluteFilePath,
-            relativePath: outputRelativeFilePath,
-          }
-        )
-
-        writeFileSync(outputAbsoluteFilePath, output)
-
-        console.log(`-> ${outputAbsoluteFilePath}`)
-      })
     } catch (error) {
       if (error instanceof Error) {
         error.message = `${error.message} in TS file "${file.fileName}"`
