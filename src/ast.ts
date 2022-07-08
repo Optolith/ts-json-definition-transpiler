@@ -1,4 +1,4 @@
-import { extname } from "path"
+import { extname, format, parse, resolve } from "path"
 import ts from "typescript"
 import { Doc, parseModuleDoc, parseNodeDoc } from "./parser/doc.js"
 
@@ -270,13 +270,23 @@ const isStatement = (node: ts.Node): node is Statement =>
   || ts.isEnumDeclaration(node)
   || ts.isModuleDeclaration(node)
 
-const statementsToStatementDictionary = (node: ts.SourceFile | ts.ModuleBlock, checker: ts.TypeChecker, typeArguments: { [name: string]: ChildNode }) =>
+const statementsToStatementDictionary = (node: ts.SourceFile | ts.ModuleBlock, checker: ts.TypeChecker, program: ts.Program, typeArguments: { [name: string]: ChildNode }) =>
   Object.fromEntries(
     node.statements
       .filter(isStatement)
       .map(statement => [
         statementIdentifier(statement),
-        nodeToAst(statement, checker, typeArguments)
+        nodeToAst(statement, checker, program, typeArguments)
+      ])
+  )
+
+const typeAliasesFromNode = (node: ts.SourceFile | ts.ModuleBlock) =>
+  Object.fromEntries(
+    node.statements
+      .filter(ts.isTypeAliasDeclaration)
+      .map(statement => [
+        statementIdentifier(statement),
+        statement as ts.TypeAliasDeclaration
       ])
   )
 
@@ -321,13 +331,45 @@ const propertyNameToString = (propertyName: ts.PropertyName): string =>
     ? propertyName.expression.getText()
     : propertyName.text
 
-const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [name: string]: ChildNode }): ChildNode => {
+const resolveImportSpecifier = (node: ts.ImportSpecifier, program: ts.Program): ts.SourceFile | undefined => {
+  const moduleSpecifier = (node.parent.parent.parent.moduleSpecifier as ts.StringLiteral).text
+
+  const referencedFileName = format({
+    ...parse(resolve(node.getSourceFile().fileName, "..", moduleSpecifier)),
+    ext: ".ts",
+    base: undefined
+  })
+
+  return program.getSourceFile(referencedFileName)
+}
+
+const identifierToImportDeclaration = (node: ts.Node, typeName?: string, namespaceName?: string): ts.ImportDeclaration | undefined =>
+  node.getSourceFile().statements
+    .filter(ts.isImportDeclaration)
+    .find(importNode => {
+      const namedBindings = importNode.importClause?.namedBindings
+
+      if (namedBindings) {
+        if (ts.isNamedImports(namedBindings) && typeName !== undefined) {
+          return namedBindings.elements.some(
+            namedBinding => namedBinding.name.text === typeName
+          )
+        }
+        else if (ts.isNamespaceImport(namedBindings) && namespaceName !== undefined) {
+          return namedBindings.name.text === namespaceName
+        }
+      }
+
+      return false
+    })
+
+const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, typeArguments: { [name: string]: ChildNode }): ChildNode => {
   if (ts.isModuleDeclaration(node)) {
     if (node.body && ts.isModuleBlock(node.body)) {
       return ({
         kind: NodeKind.Group,
         jsDoc: parseNodeDoc(node),
-        elements: statementsToStatementDictionary(node.body, checker, typeArguments)
+        elements: statementsToStatementDictionary(node.body, checker, program, typeArguments)
       })
     }
     else {
@@ -335,7 +377,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     }
   }
   else if (ts.isTypeAliasDeclaration(node)) {
-    return nodeToAst(node.type, checker, typeArguments)
+    return nodeToAst(node.type, checker, program, typeArguments)
   }
   else if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node)) {
     const jsDoc = parseNodeDoc(ts.isInterfaceDeclaration(node) ? node : node.parent)
@@ -346,7 +388,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
       return {
         kind: NodeKind.Dictionary,
         jsDoc,
-        elements: nodeToAst(firstMember.type, checker, typeArguments),
+        elements: nodeToAst(firstMember.type, checker, program, typeArguments),
         pattern: parseNodeDoc(firstMember)?.tags.patternProperties
       }
     }
@@ -363,7 +405,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
                   {
                     jsDoc: parseNodeDoc(member),
                     isRequired: member.questionToken === undefined,
-                    value: nodeToAst(member.type!, checker, typeArguments)
+                    value: nodeToAst(member.type!, checker, program, typeArguments)
                   }
                 ]
               ]
@@ -420,13 +462,18 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         if (ts.isTypeAliasDeclaration(nodeWithTypeParameters)) {
           return nodeWithTypeParameters.typeParameters ?? []
         }
+        else if (ts.isImportSpecifier(nodeWithTypeParameters)) {
+          const referencedFile = resolveImportSpecifier(nodeWithTypeParameters, program)
+          const statements = referencedFile ? typeAliasesFromNode(referencedFile) : {}
+          return statements[nodeWithTypeParameters.name.text]?.typeParameters ?? []
+        }
         else {
           throw new Error(`resolving type parameters from referenced node of type "${ts.SyntaxKind[nodeWithTypeParameters.kind]}" is currently not supported`)
         }
       })()
 
       const newTypeArguments = node.typeArguments.map(
-        typeNode => nodeToAst(typeNode, checker, typeArguments)
+        typeNode => nodeToAst(typeNode, checker, program, typeArguments)
       )
 
       if (typeParameters.length !== newTypeArguments.length) {
@@ -439,7 +486,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         )
       )
 
-      return nodeToAst(nodeWithTypeParameters, checker, newTypeArgumentsMap)
+      return nodeToAst(nodeWithTypeParameters, checker, program, newTypeArgumentsMap)
     }
     else {
       const name = ts.isIdentifier(node.typeName)
@@ -468,23 +515,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         return typeArguments[name]!
       }
 
-      const importNodes = node.getSourceFile().statements.filter(ts.isImportDeclaration)
-
-      const matchingImportNode = importNodes.find(importNode => {
-        if (importNode.importClause?.namedBindings) {
-          if (ts.isNamedImports(importNode.importClause.namedBindings)) {
-            return importNode.importClause.namedBindings.elements.some(
-              namedBinding => namedBinding.name.escapedText === outerMostReference
-            )
-          }
-          else {
-            return importNode.importClause.namedBindings.name.text === alternativeOuterMostReference
-          }
-        }
-        else {
-          return false
-        }
-      })
+      const matchingImportNode = identifierToImportDeclaration(node, outerMostReference, alternativeOuterMostReference)
 
       const externalFilePath = matchingImportNode?.moduleSpecifier
         .getText()
@@ -502,6 +533,21 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         parentGroup,
         externalFilePath: extensionlessExternalFilePath,
       }
+    }
+  }
+  else if (ts.isImportSpecifier(node)) {
+    const referencedFile = resolveImportSpecifier(node, program)
+
+    const referencedNode = referencedFile?.statements
+      .find((statement): statement is ts.InterfaceDeclaration | ts.TypeAliasDeclaration =>
+        (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement))
+        && statementIdentifier(statement) === node.name.text)
+
+    if (referencedNode) {
+      return nodeToAst(referencedNode, checker, program, typeArguments)
+    }
+    else {
+      throw new Error(`imported node is not a type`)
     }
   }
   else if (ts.isEnumDeclaration(node)) {
@@ -544,7 +590,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     return {
       kind: NodeKind.Array,
       jsDoc,
-      elements: nodeToAst(node.elementType, checker, typeArguments)
+      elements: nodeToAst(node.elementType, checker, program, typeArguments)
     }
   }
   else if (ts.isUnionTypeNode(node)) {
@@ -553,7 +599,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     return {
       kind: NodeKind.Union,
       jsDoc,
-      cases: node.types.map(type => nodeToAst(type, checker, typeArguments))
+      cases: node.types.map(type => nodeToAst(type, checker, program, typeArguments))
     }
   }
   else if (ts.isLiteralTypeNode(node)) {
@@ -594,11 +640,11 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     return {
       kind: NodeKind.Tuple,
       jsDoc,
-      elements: node.elements.map(type => nodeToAst(type, checker, typeArguments))
+      elements: node.elements.map(type => nodeToAst(type, checker, program, typeArguments))
     }
   }
   else if (ts.isParenthesizedTypeNode(node)) {
-    return nodeToAst(node.type, checker, typeArguments)
+    return nodeToAst(node.type, checker, program, typeArguments)
   }
   else {
     throw new Error(`node of type "${ts.SyntaxKind[node.kind]}" is not supported`)
@@ -613,12 +659,12 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
  * @param checker - An instance of the type checker associate with the current set of source files.
  * @returns The custom AST build from the parsed file.
  */
-export const fileToAst = (file: ts.SourceFile, checker: ts.TypeChecker): RootNode => {
+export const fileToAst = (file: ts.SourceFile, checker: ts.TypeChecker, program: ts.Program): RootNode => {
   const jsDoc = parseModuleDoc(file)
 
   return {
     kind: NodeKind.Main,
     jsDoc,
-    elements: statementsToStatementDictionary(file, checker, {})
+    elements: statementsToStatementDictionary(file, checker, program, {})
   }
 }

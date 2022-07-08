@@ -161,7 +161,7 @@ export const generate = (options: GeneratorOptions): void => {
     try {
       console.log(`Generating output for "${relativePath}" ...`)
 
-      const ast = fileToAst(file, checker)
+      const ast = fileToAst(file, checker, program)
 
       if (dumpAst) {
         writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
