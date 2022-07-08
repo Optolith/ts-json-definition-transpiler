@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.11](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.10...v0.5.11) (2022-07-08)
+
+
+### Features
+
+* skip renderers if file contains no standalone renderable content ([e47cb11](https://github.com/elyukai/optolith-tsjsonschemamd/commit/e47cb118aebffd5ef671ac4523e94bc92e2acce7))
+
 ### [0.5.10](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.9...v0.5.10) (2022-07-08)
 
 
