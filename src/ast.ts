@@ -1,131 +1,6 @@
-import { EOL } from "os"
 import { extname } from "path"
 import ts from "typescript"
-
-export namespace JSDoc {
-  const tagValueTypes = {
-    main: "string",
-    title: "string",
-    // string
-    minLength: "integer",
-    maxLength: "integer",
-    pattern: "string",
-    format: "string",
-    markdown: "boolean",
-    // numeric
-    integer: "boolean",
-    minimum: "number",
-    maximum: "number",
-    multipleOf: "number",
-    exclusiveMinimum: "number",
-    exclusiveMaximum: "number",
-    // object
-    minProperties: "integer",
-    maxProperties: "integer",
-    patternProperties: "string",
-    // array
-    minItems: "integer",
-    maxItems: "integer",
-    uniqueItems: "boolean",
-  } as const
-
-  /**
-   * A dictionary from all supported tag names to their value types.
-   */
-  export type TagValueTypes = typeof tagValueTypes
-
-  type TypeStringType = {
-    number: number
-    integer: number
-    boolean: boolean
-    string: string
-  }
-
-  type TagValueActualTypes = {
-    -readonly [K in keyof TagValueTypes]?: TypeStringType[TagValueTypes[K]]
-  }
-
-  /**
-   * The parsed JSDoc annotations for a node.
-   */
-  export type T = {
-    /**
-     * The initial description text.
-     */
-    comment?: string
-
-    /**
-     * A dictionary of supported tags (`@tag`) with parsed values, if present.
-     */
-    tags: TagValueActualTypes
-  }
-
-  const commentToString = (comment: string | ts.NodeArray<ts.JSDocComment> | undefined) =>
-    ts.getTextOfJSDocComment(comment)?.replaceAll(EOL, "\n")
-
-  const parseTagComment = <K extends keyof TagValueActualTypes>(name: K, comment: string | undefined): TagValueActualTypes[K] => {
-    const type = tagValueTypes[name]
-
-    if (type === "boolean") {
-      return (comment === "true" || !comment) as TagValueActualTypes[K]
-    }
-    else if (type === "number") {
-      return (comment === undefined ? 0 : Number.parseFloat(comment)) as TagValueActualTypes[K]
-    }
-    else if (type === "integer") {
-      return (comment === undefined ? 0 : Number.parseInt(comment)) as TagValueActualTypes[K]
-    }
-    else {
-      return (comment ?? "") as TagValueActualTypes[K]
-    }
-  }
-
-  const tagToCustom = (tag: ts.JSDocTag): [keyof TagValueActualTypes, TagValueActualTypes[keyof TagValueActualTypes]] => [
-    tag.tagName.text as keyof TagValueActualTypes,
-    parseTagComment(tag.tagName.text as keyof TagValueActualTypes, commentToString(tag.comment))
-  ]
-
-  const jsDocToCustom = (jsDoc: ts.JSDoc | undefined): T | undefined => {
-    if (jsDoc) {
-      const comment = commentToString(jsDoc.comment)
-      const tags = jsDoc.tags?.map(tagToCustom) ?? []
-
-      if (comment !== undefined || tags.length > 0) {
-        return { comment, tags: Object.fromEntries(tags) }
-      }
-    }
-  }
-
-  /**
-   * Get the JSDoc from a node, if present.
-   *
-   * @param node - The node to get the JSDoc from.
-   * @returns The parsed JSDoc, if any.
-   */
-  export const ofNode = (node: ts.Node): T | undefined =>
-    jsDocToCustom(node.getChildren().filter(ts.isJSDoc).slice(-1)[0])
-
-  /**
-   * Get the JSDoc from the file/module.
-   *
-   * @param file - The file/module to get the JSDoc from.
-   * @returns The parsed JSDoc, if any.
-   */
-  export const ofModule = (file: ts.SourceFile): T | undefined => {
-    const firstNode = file.statements[0]
-
-    if (firstNode) {
-      if (ts.isImportDeclaration(firstNode)) {
-        return JSDoc.ofNode(firstNode)
-      }
-      else {
-        const jsDocs = firstNode.getChildren().filter(ts.isJSDoc)
-
-        return jsDocs.length > 1 ? jsDocToCustom(jsDocs[0]) : undefined
-      }
-    }
-  }
-}
+import { Doc, parseModuleDoc, parseNodeDoc } from "./parser/doc.js"
 
 /**
  * The possible discriminator values to differenciate the different nodes.
@@ -158,7 +33,7 @@ export enum TokenKind {
  */
 export type GroupNode = {
   kind: NodeKind.Group
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * All elements within, keyed by their identifier.
@@ -173,14 +48,14 @@ export type GroupNode = {
  */
 export type RecordNode = {
   kind: NodeKind.Record
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * All properties, keyed by the property name.
    */
   elements: {
     [identifier: string]: {
-      jsDoc?: JSDoc.T
+      jsDoc?: Doc
 
       /**
        * Is the property required?
@@ -201,7 +76,7 @@ export type RecordNode = {
  */
 export type DictionaryNode = {
   kind: NodeKind.Dictionary
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * The value type at all defined keys.
@@ -219,7 +94,7 @@ export type DictionaryNode = {
  */
 export type TokenNode = {
   kind: NodeKind.Token
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * The specific primitive type.
@@ -244,7 +119,7 @@ export const parentGroupToArray = (group: ParentGroup | undefined): string[] =>
  */
 export type ReferenceNode = {
   kind: NodeKind.Reference
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * The name of the referenced type.
@@ -270,7 +145,7 @@ export type ReferenceNode = {
  */
 export type EnumerationNode = {
   kind: NodeKind.Enumeration
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * All possible cases.
@@ -282,7 +157,7 @@ export type EnumerationNode = {
  * A possible case from an enumeration.
  */
 export type EnumerationCase = {
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * The case name.
@@ -300,7 +175,7 @@ export type EnumerationCase = {
  */
 export type ArrayNode = {
   kind: NodeKind.Array
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * The type of all elements.
@@ -313,7 +188,7 @@ export type ArrayNode = {
  */
 export type UnionNode = {
   kind: NodeKind.Union
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * The list of all possible types.
@@ -326,7 +201,7 @@ export type UnionNode = {
  */
 export type LiteralNode = {
   kind: NodeKind.Literal
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * The constant value.
@@ -339,7 +214,7 @@ export type LiteralNode = {
  */
 export type TupleNode = {
   kind: NodeKind.Tuple
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * The types of the different elements of the tuple. Each node index
@@ -368,7 +243,7 @@ export type ChildNode =
  */
 export type RootNode = {
   kind: NodeKind.Main
-  jsDoc?: JSDoc.T
+  jsDoc?: Doc
 
   /**
    * All top-level type declarations.
@@ -451,7 +326,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     if (node.body && ts.isModuleBlock(node.body)) {
       return ({
         kind: NodeKind.Group,
-        jsDoc: JSDoc.ofNode(node),
+        jsDoc: parseNodeDoc(node),
         elements: statementsToStatementDictionary(node.body, checker, typeArguments)
       })
     }
@@ -463,7 +338,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     return nodeToAst(node.type, checker, typeArguments)
   }
   else if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node)) {
-    const jsDoc = JSDoc.ofNode(ts.isInterfaceDeclaration(node) ? node : node.parent)
+    const jsDoc = parseNodeDoc(ts.isInterfaceDeclaration(node) ? node : node.parent)
 
     const firstMember = node.members[0]
 
@@ -472,7 +347,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
         kind: NodeKind.Dictionary,
         jsDoc,
         elements: nodeToAst(firstMember.type, checker, typeArguments),
-        pattern: JSDoc.ofNode(firstMember)?.tags.patternProperties
+        pattern: parseNodeDoc(firstMember)?.tags.patternProperties
       }
     }
     else if (node.members.every(ts.isPropertySignature)) {
@@ -486,7 +361,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
                 [
                   propertyNameToString(member.name),
                   {
-                    jsDoc: JSDoc.ofNode(member),
+                    jsDoc: parseNodeDoc(member),
                     isRequired: member.questionToken === undefined,
                     value: nodeToAst(member.type!, checker, typeArguments)
                   }
@@ -502,7 +377,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     }
   }
   else if (ts.isToken(node)) {
-    const jsDoc = JSDoc.ofNode(node.parent)
+    const jsDoc = parseNodeDoc(node.parent)
 
     switch (node.kind) {
       case ts.SyntaxKind.NumberKeyword: {
@@ -534,7 +409,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     }
   }
   else if (ts.isTypeReferenceNode(node)) {
-    const jsDoc = JSDoc.ofNode(node.parent)
+    const jsDoc = parseNodeDoc(node.parent)
 
     const symbol = checker.getSymbolAtLocation(node.typeName)
 
@@ -630,14 +505,14 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     }
   }
   else if (ts.isEnumDeclaration(node)) {
-    const jsDoc = JSDoc.ofNode(node)
+    const jsDoc = parseNodeDoc(node)
 
     return {
       kind: NodeKind.Enumeration,
       jsDoc,
       cases: node.members.map((member) => {
         if (member.initializer) {
-          const jsDoc = JSDoc.ofNode(member)
+          const jsDoc = parseNodeDoc(member)
 
           if (ts.isStringLiteral(member.initializer)) {
             return {
@@ -664,7 +539,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     }
   }
   else if (ts.isArrayTypeNode(node)) {
-    const jsDoc = JSDoc.ofNode(node.parent)
+    const jsDoc = parseNodeDoc(node.parent)
 
     return {
       kind: NodeKind.Array,
@@ -673,7 +548,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     }
   }
   else if (ts.isUnionTypeNode(node)) {
-    const jsDoc = JSDoc.ofNode(node.parent)
+    const jsDoc = parseNodeDoc(node.parent)
 
     return {
       kind: NodeKind.Union,
@@ -682,7 +557,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     }
   }
   else if (ts.isLiteralTypeNode(node)) {
-    const jsDoc = JSDoc.ofNode(node.parent)
+    const jsDoc = parseNodeDoc(node.parent)
 
     const isBooleanLiteral =
       (literal: ts.LiteralTypeNode["literal"]): literal is ts.BooleanLiteral =>
@@ -714,7 +589,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
     }
   }
   else if (ts.isTupleTypeNode(node)) {
-    const jsDoc = JSDoc.ofNode(node.parent)
+    const jsDoc = parseNodeDoc(node.parent)
 
     return {
       kind: NodeKind.Tuple,
@@ -739,7 +614,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, typeArguments: { [nam
  * @returns The custom AST build from the parsed file.
  */
 export const fileToAst = (file: ts.SourceFile, checker: ts.TypeChecker): RootNode => {
-  const jsDoc = JSDoc.ofModule(file)
+  const jsDoc = parseModuleDoc(file)
 
   return {
     kind: NodeKind.Main,

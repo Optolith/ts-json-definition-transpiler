@@ -1,6 +1,7 @@
 import { EOL } from "os"
-import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, JSDoc, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "../ast.js"
+import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
+import { Doc } from "../parser/doc.js"
 
 const h = (level: number, text: string, anchor?: string) => {
   const safeLevel = level < 1 ? 1 : level > 6 ? 6 : level
@@ -19,14 +20,14 @@ const icodejson = (code: string | number | boolean) => `\`${JSON.stringify(code)
 
 const boolean = (boolean: boolean) => boolean ? "Yes" : "No"
 
-const docHeader = (schema: RootNode, jsDoc: JSDoc.T | undefined) => {
+const docHeader = (schema: RootNode, jsDoc: Doc | undefined) => {
   const title = jsDoc?.tags.title ?? schema.jsDoc?.tags.title ?? "[TITLE MISSING]"
   const description = jsDoc?.comment ?? schema.jsDoc?.comment
 
   return headerWithDescription(h(1, title), description)
 }
 
-const definitionHeader = (id: string, jsDoc: JSDoc.T | undefined) => {
+const definitionHeader = (id: string, jsDoc: Doc | undefined) => {
   return headerWithDescription(
     h(3, jsDoc?.tags.title ? `${jsDoc?.tags.title} (\`${id}\`)` : `\`${id}\``, id),
     jsDoc?.comment

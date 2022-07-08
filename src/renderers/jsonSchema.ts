@@ -1,7 +1,9 @@
 import { EOL } from "os"
 import { sep } from "path"
-import { ChildNode, JSDoc, NodeKind, parentGroupToArray, TokenKind } from "../ast.js"
+import { ChildNode, NodeKind, parentGroupToArray, TokenKind } from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
+import { Doc } from "../parser/doc.js"
+import { TagTypes } from "../parser/doctags.js"
 
 /**
  * Descriptive annotations of the JSON type definition
@@ -149,7 +151,7 @@ export interface JsonSchema_2019_09 extends Annotated {
   }
 }
 
-const toAnnotations = (jsDoc: JSDoc.T | undefined) => ({
+const toAnnotations = (jsDoc: Doc | undefined) => ({
   title: jsDoc?.tags.title,
   description: jsDoc?.comment,
 })
@@ -173,14 +175,14 @@ const constraintsByType: IgnoreValueEach<ConstraintsByType> = {
   array: { minItems: 0, maxItems: 0, uniqueItems: 0 },
 }
 
-const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: JSDoc.T | undefined, type: T): ConstraintsByType[T] =>
+const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: Doc | undefined, type: T): ConstraintsByType[T] =>
   Object.fromEntries(
     jsDoc
       ? (Object.keys(constraintsByType[type]) as (keyof ConstraintsByType[T])[])
         .flatMap(
           (key) => {
-            if (jsDoc.tags[key as keyof JSDoc.TagValueTypes] !== undefined) {
-              return [[key, jsDoc.tags[key as keyof JSDoc.TagValueTypes]]]
+            if (jsDoc.tags[key as keyof TagTypes] !== undefined) {
+              return [[key, jsDoc.tags[key as keyof TagTypes]]]
             }
             else {
               return []
