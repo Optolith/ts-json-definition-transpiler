@@ -1,6 +1,6 @@
 import * as ts from "typescript"
 import { flattenComment } from "./doccomment.js"
-import { parseTags, Tags } from "./doctags.js"
+import { DocTags, parseDocTags } from "./doctags.js"
 
 /**
  * The parsed JSDoc annotations for a node.
@@ -14,20 +14,20 @@ export type Doc = {
   /**
    * A dictionary of supported tags (`@tag`) with parsed values, if present.
    */
-  tags: Tags
+  tags: DocTags
 }
 
-const isDocumentationEmpty = (doc: Doc): boolean =>
+const isDocEmpty = (doc: Doc): boolean =>
   doc.comment === undefined && Object.keys(doc.tags).length === 0
 
 const parseDoc = (jsDoc: ts.JSDoc | undefined): Doc | undefined => {
   if (jsDoc) {
     const doc: Doc = {
       comment: flattenComment(jsDoc.comment),
-      tags: parseTags(jsDoc.tags),
+      tags: parseDocTags(jsDoc.tags),
     }
 
-    if (!isDocumentationEmpty(doc)) {
+    if (!isDocEmpty(doc)) {
       return doc
     }
   }

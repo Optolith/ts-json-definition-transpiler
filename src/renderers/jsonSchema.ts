@@ -3,7 +3,7 @@ import { sep } from "path"
 import { ChildNode, NodeKind, parentGroupToArray, TokenKind } from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
 import { Doc } from "../parser/doc.js"
-import { TagTypes } from "../parser/doctags.js"
+import { DocTagTypes } from "../parser/doctags.js"
 
 /**
  * Descriptive annotations of the JSON type definition
@@ -181,8 +181,8 @@ const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: Doc | undefined
       ? (Object.keys(constraintsByType[type]) as (keyof ConstraintsByType[T])[])
         .flatMap(
           (key) => {
-            if (jsDoc.tags[key as keyof TagTypes] !== undefined) {
-              return [[key, jsDoc.tags[key as keyof TagTypes]]]
+            if (jsDoc.tags[key as keyof DocTagTypes] !== undefined) {
+              return [[key, jsDoc.tags[key as keyof DocTagTypes]]]
             }
             else {
               return []
