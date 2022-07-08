@@ -1,7 +1,7 @@
 import { Dirent, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "fs"
 import { basename, dirname, extname, format, join, relative, sep } from "path"
 import ts from "typescript"
-import { fileToAst, RootNode } from "./ast.js"
+import { fileToAst, RootNode } from "./parser/ast.js"
 
 export type MetaInformation = {
   /**

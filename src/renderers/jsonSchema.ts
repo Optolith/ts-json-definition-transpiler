@@ -1,7 +1,7 @@
 import { EOL } from "os"
 import { sep } from "path"
-import { ChildNode, NodeKind, parentGroupToArray, TokenKind } from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
+import { ChildNode, NodeKind, parentGroupToArray, TokenKind } from "../parser/ast.js"
 import { Doc } from "../parser/doc.js"
 import { DocTagTypes } from "../parser/doctags.js"
 

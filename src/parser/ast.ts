@@ -1,6 +1,6 @@
 import { extname, format, parse, resolve } from "path"
 import ts from "typescript"
-import { Doc, parseModuleDoc, parseNodeDoc } from "./parser/doc.js"
+import { Doc, parseModuleDoc, parseNodeDoc } from "./doc.js"
 
 /**
  * The possible discriminator values to differenciate the different nodes.
