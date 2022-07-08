@@ -1,5 +1,5 @@
 import { EOL } from "os"
-import * as ts from "typescript"
+import ts from "typescript"
 
 type JSDocComments = ts.NodeArray<ts.JSDocComment>
 

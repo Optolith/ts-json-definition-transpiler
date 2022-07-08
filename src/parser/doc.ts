@@ -1,4 +1,4 @@
-import * as ts from "typescript"
+import ts from "typescript"
 import { flattenComment } from "./doccomment.js"
 import { DocTags, parseDocTags } from "./doctags.js"
 
