@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.10](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.9...v0.5.10) (2022-07-08)
+
+
+### Features
+
+* add support for importing types with type parameters ([b5695f5](https://github.com/elyukai/optolith-tsjsonschemamd/commit/b5695f5356df3b8f6eab49ed39a699e9aa0fb749))
+
+
+### Bug Fixes
+
+* typescript module import ([a7b15e7](https://github.com/elyukai/optolith-tsjsonschemamd/commit/a7b15e7ce5a3808279224aaa14900699fd8c324c))
+
 ### [0.5.9](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.8...v0.5.9) (2022-06-30)
 
 
