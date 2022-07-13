@@ -17,6 +17,7 @@ export enum NodeKind {
   Union,
   Literal,
   Tuple,
+  TypeArgument,
 }
 
 /**
@@ -69,6 +70,8 @@ export type RecordNode = {
     }
   }
 }
+
+export const isRecordNode = (node: ChildNode): node is RecordNode => node.kind === NodeKind.Record
 
 /**
  * An object with a variable set of keys with the same value type. The keys may
@@ -223,6 +226,13 @@ export type TupleNode = {
   elements: ChildNode[]
 }
 
+type TypeArgumentNode = {
+  kind: NodeKind.TypeArgument
+  name: string
+  referenced: ChildNode
+  resolved?: ChildNode
+}
+
 /**
  * A supported type node in a TypeScript file.
  */
@@ -239,6 +249,29 @@ export type ChildNode =
   | TupleNode
 
 /**
+ * A supported type node during AST creation.
+ */
+export type TempChildNode =
+  | GroupNode
+  | RecordNode
+  | DictionaryNode
+  | TokenNode
+  | ReferenceNode
+  | EnumerationNode
+  | ArrayNode
+  | UnionNode
+  | LiteralNode
+  | TupleNode
+  | TypeArgumentNode
+
+const resolveTempChildNode = (node: TempChildNode, resolve = false): ChildNode => {
+  switch (node.kind) {
+    case NodeKind.TypeArgument: return resolve ? node.resolved ?? node.referenced : node.referenced
+    default:                    return node
+  }
+}
+
+/**
  * The file root node.
  */
 export type RootNode = {
@@ -252,6 +285,8 @@ export type RootNode = {
     [identifier: string]: ChildNode
   }
 }
+
+const nameOfSyntaxKind = (node: ts.Node) => ts.SyntaxKind[node.kind]
 
 type Statement =
   | ts.InterfaceDeclaration
@@ -270,23 +305,26 @@ const isStatement = (node: ts.Node): node is Statement =>
   || ts.isEnumDeclaration(node)
   || ts.isModuleDeclaration(node)
 
-const statementsToStatementDictionary = (node: ts.SourceFile | ts.ModuleBlock, checker: ts.TypeChecker, program: ts.Program, typeArguments: { [name: string]: ChildNode }) =>
+const statementsToStatementDictionary = (node: ts.SourceFile | ts.ModuleBlock, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments) =>
   Object.fromEntries(
     node.statements
       .filter(isStatement)
       .map(statement => [
         statementIdentifier(statement),
-        nodeToAst(statement, checker, program, typeArguments)
+        resolveTempChildNode(nodeToAst(statement, checker, program, typeArguments))
       ])
   )
 
-const typeAliasesFromNode = (node: ts.SourceFile | ts.ModuleBlock) =>
+const isTypeDefinition = (node: ts.Node): node is ts.TypeAliasDeclaration | ts.InterfaceDeclaration =>
+  ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)
+
+const typeDefinitionsFromNode = (node: ts.SourceFile | ts.ModuleBlock) =>
   Object.fromEntries(
     node.statements
-      .filter(ts.isTypeAliasDeclaration)
+      .filter(isTypeDefinition)
       .map(statement => [
         statementIdentifier(statement),
-        statement as ts.TypeAliasDeclaration
+        statement as ts.TypeAliasDeclaration | ts.InterfaceDeclaration
       ])
   )
 
@@ -331,6 +369,11 @@ const propertyNameToString = (propertyName: ts.PropertyName): string =>
     ? propertyName.expression.getText()
     : propertyName.text
 
+const entityNameToString = (entityName: ts.EntityName): string =>
+  ts.isIdentifier(entityName)
+    ? entityName.text
+    : entityName.right.text
+
 const resolveImportSpecifier = (node: ts.ImportSpecifier, program: ts.Program): ts.SourceFile | undefined => {
   const moduleSpecifier = (node.parent.parent.parent.moduleSpecifier as ts.StringLiteral).text
 
@@ -363,7 +406,11 @@ const identifierToImportDeclaration = (node: ts.Node, typeName?: string, namespa
       return false
     })
 
-const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, typeArguments: { [name: string]: ChildNode }): ChildNode => {
+type TypeArguments = {
+  [name: string]: TypeArgumentNode
+}
+
+const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments): TempChildNode => {
   if (ts.isModuleDeclaration(node)) {
     if (node.body && ts.isModuleBlock(node.body)) {
       return ({
@@ -388,7 +435,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
       return {
         kind: NodeKind.Dictionary,
         jsDoc,
-        elements: nodeToAst(firstMember.type, checker, program, typeArguments),
+        elements: resolveTempChildNode(nodeToAst(firstMember.type, checker, program, typeArguments)),
         pattern: parseNodeDoc(firstMember)?.tags.patternProperties
       }
     }
@@ -405,7 +452,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
                   {
                     jsDoc: parseNodeDoc(member),
                     isRequired: member.questionToken === undefined,
-                    value: nodeToAst(member.type!, checker, program, typeArguments)
+                    value: resolveTempChildNode(nodeToAst(member.type!, checker, program, typeArguments))
                   }
                 ]
               ]
@@ -447,7 +494,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
       }
 
       default:
-        throw new Error(`node of type "${ts.SyntaxKind[node.kind]}" is not a type keyword`)
+        throw new Error(`node of type "${nameOfSyntaxKind(node)}" is not a type keyword`)
     }
   }
   else if (ts.isTypeReferenceNode(node)) {
@@ -456,24 +503,50 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
     const symbol = checker.getSymbolAtLocation(node.typeName)
 
     if (node.typeArguments && node.typeArguments.length > 0) {
-      const nodeWithTypeParameters = symbol?.declarations?.[0]!
+      const referencedType = symbol?.declarations?.[0]!
 
       const typeParameters = (() => {
-        if (ts.isTypeAliasDeclaration(nodeWithTypeParameters)) {
-          return nodeWithTypeParameters.typeParameters ?? []
+        if (ts.isTypeAliasDeclaration(referencedType)) {
+          return referencedType.typeParameters ?? []
         }
-        else if (ts.isImportSpecifier(nodeWithTypeParameters)) {
-          const referencedFile = resolveImportSpecifier(nodeWithTypeParameters, program)
-          const statements = referencedFile ? typeAliasesFromNode(referencedFile) : {}
-          return statements[nodeWithTypeParameters.name.text]?.typeParameters ?? []
+        else if (ts.isImportSpecifier(referencedType)) {
+          const referencedFile = resolveImportSpecifier(referencedType, program)
+          const statements = referencedFile ? typeDefinitionsFromNode(referencedFile) : {}
+          return statements[referencedType.name.text]?.typeParameters ?? []
         }
         else {
-          throw new Error(`resolving type parameters from referenced node of type "${ts.SyntaxKind[nodeWithTypeParameters.kind]}" is currently not supported`)
+          throw new Error(`resolving type parameters from referenced node of type "${nameOfSyntaxKind(referencedType)}" is currently not supported`)
         }
       })()
 
       const newTypeArguments = node.typeArguments.map(
-        typeNode => nodeToAst(typeNode, checker, program, typeArguments)
+        typeNode => {
+          const referenced = nodeToAst(typeNode, checker, program, typeArguments)
+
+          if (referenced.kind === NodeKind.TypeArgument) {
+            return referenced
+          }
+          else {
+            return {
+              referenced,
+              resolved: (() => {
+                if (ts.isTypeReferenceNode(typeNode)) {
+                  const type = checker.getTypeFromTypeNode(typeNode)
+                  const sourceFileOfType = type.getSymbol()?.declarations?.[0]?.getSourceFile()
+                  const statements = sourceFileOfType && typeDefinitionsFromNode(sourceFileOfType)
+                  const referencedTypeInArgument = statements?.[entityNameToString(typeNode.typeName)];
+
+                  if (referencedTypeInArgument) {
+                    return resolveTempChildNode(nodeToAst(referencedTypeInArgument, checker, program, typeArguments), true)
+                  }
+                }
+                else {
+                  console.log(nameOfSyntaxKind(typeNode));
+                }
+              })()
+            }
+          }
+        }
       )
 
       if (typeParameters.length !== newTypeArguments.length) {
@@ -482,11 +555,19 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
 
       const newTypeArgumentsMap = Object.fromEntries(
         typeParameters.map(
-          (key, index) => [key.name.text, newTypeArguments[index]!]
+          (key, index) => {
+            const argNode: TypeArgumentNode = {
+              kind: NodeKind.TypeArgument,
+              name: key.name.text,
+              ...newTypeArguments[index]!
+            }
+
+            return [key.name.text, argNode]
+          }
         )
       )
 
-      return nodeToAst(nodeWithTypeParameters, checker, program, newTypeArgumentsMap)
+      return nodeToAst(referencedType, checker, program, newTypeArgumentsMap)
     }
     else {
       const name = ts.isIdentifier(node.typeName)
@@ -512,7 +593,12 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
         && alternativeOuterMostReference === undefined
         && name in typeArguments
       ) {
-        return typeArguments[name]!
+        return {
+          kind: NodeKind.TypeArgument,
+          name,
+          referenced: typeArguments[name]!.referenced,
+          resolved: typeArguments[name]!.resolved,
+        }
       }
 
       const matchingImportNode = identifierToImportDeclaration(node, outerMostReference, alternativeOuterMostReference)
@@ -590,7 +676,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
     return {
       kind: NodeKind.Array,
       jsDoc,
-      elements: nodeToAst(node.elementType, checker, program, typeArguments)
+      elements: resolveTempChildNode(nodeToAst(node.elementType, checker, program, typeArguments))
     }
   }
   else if (ts.isUnionTypeNode(node)) {
@@ -599,7 +685,41 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
     return {
       kind: NodeKind.Union,
       jsDoc,
-      cases: node.types.map(type => nodeToAst(type, checker, program, typeArguments))
+      cases: node.types.map(type => resolveTempChildNode(nodeToAst(type, checker, program, typeArguments)))
+    }
+  }
+  else if (ts.isIntersectionTypeNode(node)) {
+    const jsDoc = parseNodeDoc(node.parent)
+
+    const intersectedNodes =
+      node.types.map(childNode => {
+        console.log("IntersectionNodeKind:", nameOfSyntaxKind(childNode));
+        return resolveTempChildNode(nodeToAst(childNode, checker, program, typeArguments), true)
+      })
+
+    if (intersectedNodes.every(isRecordNode)) {
+      const [firstNode, ...otherNodes] = intersectedNodes
+      const elements: RecordNode["elements"] = firstNode?.elements ?? {}
+
+      otherNodes.forEach(otherNode =>
+        Object.entries(otherNode.elements).forEach(([propertyName, propertyValue]) => {
+          if (elements.hasOwnProperty(propertyName)) {
+            throw new Error(`property ${propertyName} has been provided in multiple types of the intersection, which is currently not supported`)
+          }
+          else {
+            elements[propertyName] = propertyValue
+          }
+        })
+      )
+
+      return {
+        kind: NodeKind.Record,
+        jsDoc,
+        elements,
+      }
+    }
+    else {
+      throw new Error(`intersections are only supported for records`)
     }
   }
   else if (ts.isLiteralTypeNode(node)) {
@@ -631,7 +751,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
       }
     }
     else {
-      throw new Error(`literal of type "${ts.SyntaxKind[node.literal.kind]}" is not supported`)
+      throw new Error(`literal of type "${nameOfSyntaxKind(node.literal)}" is not supported`)
     }
   }
   else if (ts.isTupleTypeNode(node)) {
@@ -640,14 +760,14 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
     return {
       kind: NodeKind.Tuple,
       jsDoc,
-      elements: node.elements.map(type => nodeToAst(type, checker, program, typeArguments))
+      elements: node.elements.map(type => resolveTempChildNode(nodeToAst(type, checker, program, typeArguments)))
     }
   }
   else if (ts.isParenthesizedTypeNode(node)) {
     return nodeToAst(node.type, checker, program, typeArguments)
   }
   else {
-    throw new Error(`node of type "${ts.SyntaxKind[node.kind]}" is not supported`)
+    throw new Error(`node of type "${nameOfSyntaxKind(node)}" is not supported`)
   }
 }
 
