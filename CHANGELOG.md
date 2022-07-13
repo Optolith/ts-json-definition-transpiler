@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.12](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.11...v0.5.12) (2022-07-13)
+
+
+### Features
+
+* limited support for intersection types ([a20ea70](https://github.com/elyukai/optolith-tsjsonschemamd/commit/a20ea702f095d306ecfba2cb85687be91b12e5e0))
+
 ### [0.5.11](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.10...v0.5.11) (2022-07-08)
 
 
