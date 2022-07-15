@@ -1,4 +1,4 @@
-import { extname, format, parse, resolve } from "path"
+import { dirname, extname, format, parse, relative, resolve, sep } from "path"
 import ts from "typescript"
 import { Doc, parseModuleDoc, parseNodeDoc } from "./doc.js"
 
@@ -305,13 +305,13 @@ const isStatement = (node: ts.Node): node is Statement =>
   || ts.isEnumDeclaration(node)
   || ts.isModuleDeclaration(node)
 
-const statementsToStatementDictionary = (node: ts.SourceFile | ts.ModuleBlock, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments) =>
+const statementsToStatementDictionary = (node: ts.SourceFile | ts.ModuleBlock, file: ts.SourceFile, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments) =>
   Object.fromEntries(
     node.statements
       .filter(isStatement)
       .map(statement => [
         statementIdentifier(statement),
-        resolveTempChildNode(nodeToAst(statement, checker, program, typeArguments))
+        resolveTempChildNode(nodeToAst(statement, file, checker, program, typeArguments))
       ])
   )
 
@@ -410,13 +410,13 @@ type TypeArguments = {
   [name: string]: TypeArgumentNode
 }
 
-const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments): TempChildNode => {
+const nodeToAst = (node: ts.Node, file: ts.SourceFile, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments, resolveReference = false): TempChildNode => {
   if (ts.isModuleDeclaration(node)) {
     if (node.body && ts.isModuleBlock(node.body)) {
       return ({
         kind: NodeKind.Group,
         jsDoc: parseNodeDoc(node),
-        elements: statementsToStatementDictionary(node.body, checker, program, typeArguments)
+        elements: statementsToStatementDictionary(node.body, file, checker, program, typeArguments)
       })
     }
     else {
@@ -424,7 +424,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
     }
   }
   else if (ts.isTypeAliasDeclaration(node)) {
-    return nodeToAst(node.type, checker, program, typeArguments)
+    return nodeToAst(node.type, file, checker, program, typeArguments, resolveReference)
   }
   else if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node)) {
     const jsDoc = parseNodeDoc(ts.isInterfaceDeclaration(node) ? node : node.parent)
@@ -435,7 +435,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
       return {
         kind: NodeKind.Dictionary,
         jsDoc,
-        elements: resolveTempChildNode(nodeToAst(firstMember.type, checker, program, typeArguments)),
+        elements: resolveTempChildNode(nodeToAst(firstMember.type, file, checker, program, typeArguments)),
         pattern: parseNodeDoc(firstMember)?.tags.patternProperties
       }
     }
@@ -452,7 +452,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
                   {
                     jsDoc: parseNodeDoc(member),
                     isRequired: member.questionToken === undefined,
-                    value: resolveTempChildNode(nodeToAst(member.type!, checker, program, typeArguments))
+                    value: resolveTempChildNode(nodeToAst(member.type!, file, checker, program, typeArguments))
                   }
                 ]
               ]
@@ -521,7 +521,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
 
       const newTypeArguments = node.typeArguments.map(
         typeNode => {
-          const referenced = nodeToAst(typeNode, checker, program, typeArguments)
+          const referenced = nodeToAst(typeNode, file, checker, program, typeArguments)
 
           if (referenced.kind === NodeKind.TypeArgument) {
             return referenced
@@ -537,11 +537,8 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
                   const referencedTypeInArgument = statements?.[entityNameToString(typeNode.typeName)];
 
                   if (referencedTypeInArgument) {
-                    return resolveTempChildNode(nodeToAst(referencedTypeInArgument, checker, program, typeArguments), true)
+                    return resolveTempChildNode(nodeToAst(referencedTypeInArgument, file, checker, program, typeArguments), true)
                   }
-                }
-                else {
-                  console.log(nameOfSyntaxKind(typeNode));
                 }
               })()
             }
@@ -567,7 +564,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
         )
       )
 
-      return nodeToAst(referencedType, checker, program, newTypeArgumentsMap)
+      return nodeToAst(referencedType, file, checker, program, newTypeArgumentsMap)
     }
     else {
       const name = ts.isIdentifier(node.typeName)
@@ -600,24 +597,40 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
           resolved: typeArguments[name]!.resolved,
         }
       }
+      else if (resolveReference) {
+        const type = checker.getTypeFromTypeNode(node)
+        const sourceFileOfType = (type.getSymbol() ?? type.aliasSymbol)?.declarations?.[0]?.getSourceFile()
+        const statements = sourceFileOfType && typeDefinitionsFromNode(sourceFileOfType)
+        const referencedTypeInArgument = statements?.[entityNameToString(node.typeName)];
+
+        if (referencedTypeInArgument) {
+          return nodeToAst(referencedTypeInArgument, file, checker, program, typeArguments, true)
+        }
+      }
+
+      const emptyPathToUndefined = (path: string | undefined) => path ? path : undefined
+      const removeExtension = (path: string | undefined) => path?.slice(0, -extname(path).length)
+      const appendCurrentDir = (path: string | undefined) => path?.[0] === "." ? path : `.${sep}${path}`
+      const getPathFromImportDeclaration = (imp: ts.ImportDeclaration | undefined) =>
+        imp?.moduleSpecifier.getText().replace(/^(["'])(.+)\1$/, "$2")
 
       const matchingImportNode = identifierToImportDeclaration(node, outerMostReference, alternativeOuterMostReference)
+      const externalFilePathFromImport = emptyPathToUndefined(removeExtension(getPathFromImportDeclaration(matchingImportNode)))
 
-      const externalFilePath = matchingImportNode?.moduleSpecifier
-        .getText()
-        .replace(/^["'](.+)["']$/, "$1")
+      const originFileName = file.fileName
+      const currentFileName = node.getSourceFile().fileName
 
-      const extensionlessExternalFilePath =
-        externalFilePath
-        ? externalFilePath.slice(0, -extname(externalFilePath).length)
-        : undefined
+      const externalFilePathFromFilePaths =
+        originFileName === currentFileName
+          ? undefined
+          : emptyPathToUndefined(appendCurrentDir(removeExtension(relative(dirname(file.fileName), node.getSourceFile().fileName))))
 
       return {
         kind: NodeKind.Reference,
         jsDoc,
         name,
         parentGroup,
-        externalFilePath: extensionlessExternalFilePath,
+        externalFilePath: externalFilePathFromImport ?? externalFilePathFromFilePaths,
       }
     }
   }
@@ -630,7 +643,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
         && statementIdentifier(statement) === node.name.text)
 
     if (referencedNode) {
-      return nodeToAst(referencedNode, checker, program, typeArguments)
+      return nodeToAst(referencedNode, file, checker, program, typeArguments)
     }
     else {
       throw new Error(`imported node is not a type`)
@@ -676,7 +689,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
     return {
       kind: NodeKind.Array,
       jsDoc,
-      elements: resolveTempChildNode(nodeToAst(node.elementType, checker, program, typeArguments))
+      elements: resolveTempChildNode(nodeToAst(node.elementType, file, checker, program, typeArguments))
     }
   }
   else if (ts.isUnionTypeNode(node)) {
@@ -685,17 +698,16 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
     return {
       kind: NodeKind.Union,
       jsDoc,
-      cases: node.types.map(type => resolveTempChildNode(nodeToAst(type, checker, program, typeArguments)))
+      cases: node.types.map(type => resolveTempChildNode(nodeToAst(type, file, checker, program, typeArguments)))
     }
   }
   else if (ts.isIntersectionTypeNode(node)) {
     const jsDoc = parseNodeDoc(node.parent)
 
     const intersectedNodes =
-      node.types.map(childNode => {
-        console.log("IntersectionNodeKind:", nameOfSyntaxKind(childNode));
-        return resolveTempChildNode(nodeToAst(childNode, checker, program, typeArguments), true)
-      })
+      node.types.map(childNode =>
+        resolveTempChildNode(nodeToAst(childNode, file, checker, program, typeArguments, true), true)
+      )
 
     if (intersectedNodes.every(isRecordNode)) {
       const [firstNode, ...otherNodes] = intersectedNodes
@@ -719,7 +731,7 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
       }
     }
     else {
-      throw new Error(`intersections are only supported for records`)
+      throw new Error(`intersections are only supported for ${NodeKind[NodeKind.Record]}, but ${intersectedNodes.map(childNode => NodeKind[childNode.kind]).join(" and ")} were given`)
     }
   }
   else if (ts.isLiteralTypeNode(node)) {
@@ -760,11 +772,11 @@ const nodeToAst = (node: ts.Node, checker: ts.TypeChecker, program: ts.Program, 
     return {
       kind: NodeKind.Tuple,
       jsDoc,
-      elements: node.elements.map(type => resolveTempChildNode(nodeToAst(type, checker, program, typeArguments)))
+      elements: node.elements.map(type => resolveTempChildNode(nodeToAst(type, file, checker, program, typeArguments)))
     }
   }
   else if (ts.isParenthesizedTypeNode(node)) {
-    return nodeToAst(node.type, checker, program, typeArguments)
+    return nodeToAst(node.type, file, checker, program, typeArguments)
   }
   else {
     throw new Error(`node of type "${nameOfSyntaxKind(node)}" is not supported`)
@@ -785,6 +797,6 @@ export const fileToAst = (file: ts.SourceFile, checker: ts.TypeChecker, program:
   return {
     kind: NodeKind.Main,
     jsDoc,
-    elements: statementsToStatementDictionary(file, checker, program, {})
+    elements: statementsToStatementDictionary(file, file, checker, program, {})
   }
 }
