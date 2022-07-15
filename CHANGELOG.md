@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.13](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.12...v0.5.13) (2022-07-15)
+
+
+### Features
+
+* improve resolving records for union types ([531884a](https://github.com/elyukai/optolith-tsjsonschemamd/commit/531884acc80c5b313e0d280c85e3c848e29a9fa6))
+
 ### [0.5.12](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.11...v0.5.12) (2022-07-13)
 
 
