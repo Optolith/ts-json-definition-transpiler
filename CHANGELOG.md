@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.15](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.14...v0.5.15) (2022-07-22)
+
+
+### Bug Fixes
+
+* expose json schema spec enum ([de2163c](https://github.com/elyukai/optolith-tsjsonschemamd/commit/de2163ccac8d502c84c83b87d8ff0d03f8e8d0de))
+
 ### [0.5.14](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.13...v0.5.14) (2022-07-22)
 
 
