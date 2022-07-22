@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.14](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.13...v0.5.14) (2022-07-22)
+
+
+### Features
+
+* handle tag "default" ([5d20ae4](https://github.com/elyukai/optolith-tsjsonschemamd/commit/5d20ae438cf79d1c941bba6b0a2e8e26006260bc))
+
 ### [0.5.13](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.12...v0.5.13) (2022-07-15)
 
 
