@@ -362,7 +362,7 @@ const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
     return `${JSON.stringify(jsonSchema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
   }
 
-enum Spec {
+export enum Spec {
   Draft_07 = 1,
   Draft_2019_09 = 2,
   Draft_2020_12 = 3,
