@@ -11,6 +11,7 @@ import { DocTagTypes } from "../parser/doctags.js"
 interface Annotated {
   title?: string
   description?: string
+  default?: unknown
 }
 
 interface ObjectConstraints {
@@ -156,6 +157,10 @@ const toAnnotations = (jsDoc: Doc | undefined) => ({
   description: jsDoc?.comment,
 })
 
+const toDefault = (jsDoc: Doc | undefined) => jsDoc?.tags.default !== undefined ? {
+  default: jsDoc?.tags.default,
+} : undefined
+
 type ConstraintsByType = {
   number: NumberConstraints,
   string: StringConstraints,
@@ -198,6 +203,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
       return {
         ...toAnnotations(node.jsDoc),
         type: "object",
+        ...toDefault(node.jsDoc),
         properties: Object.fromEntries(
           Object.entries(node.elements)
             .map(([key, config]) => [key, nodeToDefinition(spec, config.value)])),
@@ -213,6 +219,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
         return {
           ...toAnnotations(node.jsDoc),
           type: "object",
+          ...toDefault(node.jsDoc),
           patternProperties: {
             [node.pattern]: nodeToDefinition(spec, node.elements)
           },
@@ -224,6 +231,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
         return {
           ...toAnnotations(node.jsDoc),
           type: "object",
+          ...toDefault(node.jsDoc),
           additionalProperties: nodeToDefinition(spec, node.elements),
           ...toConstraints(node.jsDoc, "object")
         }
@@ -233,6 +241,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
       return {
         ...toAnnotations(node.jsDoc),
         type: "array",
+        ...toDefault(node.jsDoc),
         items: nodeToDefinition(spec, node.elements),
         ...toConstraints(node.jsDoc, "array")
       }
@@ -240,7 +249,8 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
     case NodeKind.Enumeration: {
       return {
         ...toAnnotations(node.jsDoc),
-        enum: node.cases.map(({ value }) => value)
+        enum: node.cases.map(({ value }) => value),
+        ...toDefault(node.jsDoc),
       }
     }
     case NodeKind.Tuple: {
@@ -250,6 +260,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
           ...toAnnotations(node.jsDoc),
           type: "array",
           items: node.elements.map(element => nodeToDefinition(spec, element)),
+          ...toDefault(node.jsDoc),
           minItems: node.elements.length,
           maxItems: node.elements.length,
           additionalItems: false,
@@ -258,6 +269,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
           ...toAnnotations(node.jsDoc),
           type: "array",
           prefixItems: node.elements.map(element => nodeToDefinition(spec, element)),
+          ...toDefault(node.jsDoc),
           minItems: node.elements.length,
           maxItems: node.elements.length,
           items: false,
@@ -268,7 +280,8 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
     case NodeKind.Union: {
       return {
         ...toAnnotations(node.jsDoc),
-        oneOf: node.cases.map(element => nodeToDefinition(spec, element))
+        oneOf: node.cases.map(element => nodeToDefinition(spec, element)),
+        ...toDefault(node.jsDoc),
       }
     }
     case NodeKind.Group: {
@@ -280,7 +293,8 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
     case NodeKind.Literal: {
       return {
         ...toAnnotations(node.jsDoc),
-        const: node.value
+        const: node.value,
+        ...toDefault(node.jsDoc),
       }
     }
     case NodeKind.Reference: {
@@ -289,7 +303,8 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
 
       return {
         ...toAnnotations(node.jsDoc),
-        $ref: `${externalFilePath}#/${defsKey(spec)}/${qualifiedName}`
+        $ref: `${externalFilePath}#/${defsKey(spec)}/${qualifiedName}`,
+        ...toDefault(node.jsDoc),
       }
     }
     case NodeKind.Token: {
@@ -298,6 +313,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
           return {
             ...toAnnotations(node.jsDoc),
             type: node.jsDoc?.tags.integer ? "integer" : "number",
+            ...toDefault(node.jsDoc),
             ...toConstraints(node.jsDoc, "number")
           }
         }
@@ -306,6 +322,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
           return {
             ...toAnnotations(node.jsDoc),
             type: "string",
+            ...toDefault(node.jsDoc),
             ...toConstraints(node.jsDoc, "string")
           }
         }
@@ -313,7 +330,8 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
         case TokenKind.Boolean: {
           return {
             ...toAnnotations(node.jsDoc),
-            type: "boolean"
+            type: "boolean",
+            ...toDefault(node.jsDoc),
           }
         }
       }

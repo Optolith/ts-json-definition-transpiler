@@ -8,6 +8,7 @@ const docTagTypes = {
   // General
   main: "string",
   title: "string",
+  default: "unknown",
 
   // String
   minLength: "integer",
@@ -49,6 +50,7 @@ type JSONSchemaTypeToTypeScriptType = {
   integer: number
   boolean: boolean
   string: string
+  unknown: unknown
 }
 
 /**
@@ -63,6 +65,7 @@ const parseDocTagComment = <K extends keyof DocTags>(name: K, comment: string | 
     case "boolean": return (comment === "true" || !comment) as DocTags[K]
     case "number":  return (comment === undefined ? 0 : Number.parseFloat(comment)) as DocTags[K]
     case "integer": return (comment === undefined ? 0 : Number.parseInt(comment)) as DocTags[K]
+    case "unknown": return (comment === undefined ? undefined : JSON.parse(comment)) as DocTags[K]
     default:        return (comment ?? "") as DocTags[K]
   }
 }

@@ -16,7 +16,7 @@ const namedLink = (anchorName: string, fileUrl = "") => `${fileUrl}#${anchorName
 
 const icode = (code: string | number | boolean) => `\`${code}\``
 
-const icodejson = (code: string | number | boolean) => `\`${JSON.stringify(code)}\``
+const icodejson = (code: unknown | string | number | boolean) => `\`${JSON.stringify(code)}\``
 
 const boolean = (boolean: boolean) => boolean ? "Yes" : "No"
 
@@ -81,6 +81,7 @@ const simpleBody = (node: SimpleNode): string => {
         case TokenKind.Number: {
           return LabelledList.create([
             LabelledList.line("Type", node.jsDoc?.tags.integer ?? false, value => value ? "Integer" : "Number"),
+            LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
             LabelledList.line("Minimum", node.jsDoc?.tags.minimum, icode),
             LabelledList.line("Exclusive Minimum", node.jsDoc?.tags.exclusiveMinimum, icode),
             LabelledList.line("Maximum", node.jsDoc?.tags.maximum, icode),
@@ -91,6 +92,7 @@ const simpleBody = (node: SimpleNode): string => {
         case TokenKind.String: {
           return LabelledList.create([
             LabelledList.line("Type", node.jsDoc?.tags.markdown ?? false, value => value ? "Markdown-formatted text" : "String"),
+            LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
             LabelledList.line("Minimum Length", node.jsDoc?.tags.minLength, icode),
             LabelledList.line("Maximum Length", node.jsDoc?.tags.maxLength, icode),
             LabelledList.line("Format", node.jsDoc?.tags.format, icode),
@@ -100,6 +102,7 @@ const simpleBody = (node: SimpleNode): string => {
         case TokenKind.Boolean: {
           return LabelledList.create([
             LabelledList.line("Type", "Boolean"),
+            LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
           ])
         }
       }
@@ -159,6 +162,7 @@ const arrayBody = (
       LabelledList.create([
         LabelledList.line("Type", "List"),
         LabelledList.line("Items", itemsPropertyPath, anchor => a(anchor, namedLink(anchor))),
+        LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
         LabelledList.line("Minimum Items", node.jsDoc?.tags.minItems, icode),
         LabelledList.line("Maximum Items", node.jsDoc?.tags.maxItems, icode),
         LabelledList.line("Unique Items", node.jsDoc?.tags.uniqueItems, boolean),
@@ -190,6 +194,7 @@ const tupleBody = (
               .join(", ")
           }]`
         ),
+        LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
       ]),
     ],
     append: node.elements.map(
@@ -261,6 +266,7 @@ const dictionaryBody = (
       LabelledList.create([
         LabelledList.line("Type", "Dictionary"),
         LabelledList.line("Property Values", itemsPropertyPath, anchor => a(anchor, namedLink(anchor))),
+        LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
         LabelledList.line("Pattern", node.pattern, icode),
         LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
       ]),
@@ -310,6 +316,7 @@ const strictObjectBody = (
               headerWithDescription(title, propertyNode.jsDoc?.comment),
               LabelledList.create([
                 LabelledList.line("Type", propertyPropertyPath, anchor => a("Object", namedLink(anchor))),
+                LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
               ]),
             ],
             append: [
@@ -348,6 +355,7 @@ const strictObjectBody = (
     inline: [
       LabelledList.create([
         LabelledList.line("Type", "Object"),
+        LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
         LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
       ]),
       `Key | Description | Details${EOL}:-- | :-- | :--${EOL}${propertiesOverview}`,
