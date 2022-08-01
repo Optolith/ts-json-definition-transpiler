@@ -281,87 +281,101 @@ const strictObjectBody = (
   node: RecordNode,
   propertyPath: string
 ): SectionNode => {
-  const propertiesOverview = Object.entries(node.elements)
-    .map(([key, config]) => {
-      const propertyPropertyPath = `${propertyPath}/${key}`
-      const title = `\`${key}${config.isRequired ? "" : "?"}\``
+  const nodeElements = Object.entries(node.elements)
 
-      return [
-        title,
-        config.jsDoc?.comment
-          ?.split("\n\n")[0]
-          ?.replaceAll("\n", " ")
-          ?? "",
-        a("See details", namedLink(propertyPropertyPath))
-      ].join(" | ")
-    })
-    .join(EOL)
-
-  const properties = Object.entries(node.elements)
-    .reduce<SectionNode>(
-      (
-        {
-          inline,
-          append,
-        },
-        [key, propertyNode]
-      ) => {
+  if (nodeElements.length === 0) {
+    return {
+      inline: [
+        LabelledList.create([
+          LabelledList.line("Type", "Empty Object"),
+        ])
+      ],
+      append: []
+    }
+  }
+  else {
+    const propertiesOverview = Object.entries(node.elements)
+      .map(([key, config]) => {
         const propertyPropertyPath = `${propertyPath}/${key}`
-        const title = h(4, `\`${key}${propertyNode.isRequired ? "" : "?"}\``, propertyPropertyPath)
+        const title = `\`${key}${config.isRequired ? "" : "?"}\``
 
-        if (propertyNode.value.kind === NodeKind.Record) {
-          return {
-            inline: [
-              ...inline,
-              headerWithDescription(title, propertyNode.jsDoc?.comment),
-              LabelledList.create([
-                LabelledList.line("Type", propertyPropertyPath, anchor => a("Object", namedLink(anchor))),
-                LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
-              ]),
-            ],
-            append: [
-              ...append,
-              definitionToMarkdown(propertyPropertyPath, propertyNode.value)
-            ],
+        return [
+          title,
+          config.jsDoc?.comment
+            ?.split("\n\n")[0]
+            ?.replaceAll("\n", " ")
+            ?? "",
+          a("See details", namedLink(propertyPropertyPath))
+        ].join(" | ")
+      })
+      .join(EOL)
+
+    const properties = nodeElements
+      .reduce<SectionNode>(
+        (
+          {
+            inline,
+            append,
+          },
+          [key, propertyNode]
+        ) => {
+          const propertyPropertyPath = `${propertyPath}/${key}`
+          const title = h(4, `\`${key}${propertyNode.isRequired ? "" : "?"}\``, propertyPropertyPath)
+
+          if (propertyNode.value.kind === NodeKind.Record) {
+            return {
+              inline: [
+                ...inline,
+                headerWithDescription(title, propertyNode.jsDoc?.comment),
+                LabelledList.create([
+                  LabelledList.line("Type", propertyPropertyPath, anchor => a("Object", namedLink(anchor))),
+                  LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
+                ]),
+              ],
+              append: [
+                ...append,
+                definitionToMarkdown(propertyPropertyPath, propertyNode.value)
+              ],
+            }
           }
-        }
-        else {
-          const { inline: inlineCurrent, append: appendCurrent } = definitionToMarkdown(
-            propertyPropertyPath,
-            propertyNode.value,
-            true,
-            headerWithDescription(title, propertyNode.jsDoc?.comment)
-          )
+          else {
+            const { inline: inlineCurrent, append: appendCurrent } = definitionToMarkdown(
+              propertyPropertyPath,
+              propertyNode.value,
+              true,
+              headerWithDescription(title, propertyNode.jsDoc?.comment)
+            )
 
-          return {
-            inline: [
-              ...inline,
-              ...inlineCurrent,
-            ],
-            append: [
-              ...append,
-              ...appendCurrent
-            ],
+            return {
+              inline: [
+                ...inline,
+                ...inlineCurrent,
+              ],
+              append: [
+                ...append,
+                ...appendCurrent
+              ],
+            }
           }
+        },
+        {
+          inline: [],
+          append: [],
         }
-      },
-      {
-        inline: [],
-        append: [],
-      }
-    )
+      )
 
-  return {
-    inline: [
-      LabelledList.create([
-        LabelledList.line("Type", "Object"),
-        LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
-        LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
-      ]),
-      `Key | Description | Details${EOL}:-- | :-- | :--${EOL}${propertiesOverview}`,
-      ...properties.inline,
-    ],
-    append: properties.append
+    return {
+      inline: [
+        LabelledList.create([
+          LabelledList.line("Type", "Object"),
+          LabelledList.line("Default", node.jsDoc?.tags.default, icodejson),
+          LabelledList.line("Minimum Properties", node.jsDoc?.tags.minProperties, icode),
+        ]),
+        `Key | Description | Details${EOL}:-- | :-- | :--${EOL}${propertiesOverview}`,
+        ...properties.inline,
+      ],
+      append: properties.append
+    }
   }
 }
 
