@@ -87,6 +87,12 @@ export type GeneratorOptions = {
   clean?: boolean
 
   /**
+   * If `true`, it logs every successful conversion, including the source and
+   * output file paths.
+   */
+  verbose?: boolean
+
+  /**
    * A predicate that if defined only outputs files for the source files that
    * match the predicate.
    */
@@ -107,6 +113,7 @@ export const generate = (options: GeneratorOptions): void => {
     dumpAst = false,
     clean = false,
     fileNamePredicate,
+    verbose = false
   } = options
 
   const flattenTypeScriptFileNamesFromDir = (dirPath: string): string[] => {
@@ -159,7 +166,9 @@ export const generate = (options: GeneratorOptions): void => {
     const name         = basename(relativePath, ".ts")
 
     try {
-      console.log(`Generating output for "${relativePath}" ...`)
+      if (verbose) {
+        console.log(`Generating output for "${relativePath}" ...`)
+      }
 
       const ast = fileToAst(file, checker, program)
 
@@ -186,11 +195,17 @@ export const generate = (options: GeneratorOptions): void => {
 
           writeFileSync(outputAbsoluteFilePath, output)
 
-          console.log(`-> ${outputAbsoluteFilePath}`)
+          if (verbose) {
+            console.log(`-> ${outputAbsoluteFilePath}`)
+          }
         })
       }
       else {
-        console.log(`file does not contain renderable content`)
+        if (verbose) {
+          console.log(`file does not contain renderable content`)
+        } else {
+          console.log(`"${relativePath}" does not contain renderable content`)
+        }
       }
 
     } catch (error) {
@@ -204,5 +219,9 @@ export const generate = (options: GeneratorOptions): void => {
     }
   })
 
-  console.log(`Generating ${filteredFiles.length * outputs.length} output file(s) finished successfully.`)
+  if (verbose) {
+    console.log(`Generating ${filteredFiles.length * outputs.length} output file(s) finished successfully.`)
+  } else {
+    console.log(`Generated ${filteredFiles.length * outputs.length} output file(s).`)
+  }
 }
