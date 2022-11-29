@@ -296,12 +296,13 @@ type Statement =
 
 const statementIdentifier = (statement: Statement) => statement.name.text
 
-const hasNoTypeParameters = (node: ts.InterfaceDeclaration | ts.TypeAliasDeclaration) =>
+const hasNoOrDefaultedTypeParameters = (node: ts.InterfaceDeclaration | ts.TypeAliasDeclaration) =>
   node.typeParameters === undefined || node.typeParameters.length === 0
+  || node.typeParameters.every(typeParam => typeParam.default !== undefined)
 
 const isStatement = (node: ts.Node): node is Statement =>
-  (ts.isInterfaceDeclaration(node) && hasNoTypeParameters(node))
-  || (ts.isTypeAliasDeclaration(node) && hasNoTypeParameters(node))
+  (ts.isInterfaceDeclaration(node) && hasNoOrDefaultedTypeParameters(node))
+  || (ts.isTypeAliasDeclaration(node) && hasNoOrDefaultedTypeParameters(node))
   || ts.isEnumDeclaration(node)
   || ts.isModuleDeclaration(node)
 
@@ -406,6 +407,40 @@ const identifierToImportDeclaration = (node: ts.Node, typeName?: string, namespa
       return false
     })
 
+const resolveTypeArguments = <T extends ts.Node>(typeArgs: ts.NodeArray<T> | undefined, file: ts.SourceFile, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments, getTypeNode: (arg: T) => ts.TypeNode, getName: (arg: T, index: number) => string): TypeArguments => {
+  return typeArgs?.reduce<TypeArguments>((args, typeArg, index) => {
+    const typeNode = getTypeNode(typeArg)
+    const referenced = nodeToAst(typeNode, file, checker, program, typeArguments)
+
+    const argNode: TypeArgumentNode = referenced.kind === NodeKind.TypeArgument ? referenced : {
+      kind: NodeKind.TypeArgument,
+      name: getName(typeArg, index),
+      referenced,
+      resolved: (() => {
+        if (ts.isTypeReferenceNode(typeNode)) {
+          const type = checker.getTypeFromTypeNode(typeNode)
+          const sourceFileOfType = type.getSymbol()?.declarations?.[0]?.getSourceFile()
+          const statements = sourceFileOfType && typeDefinitionsFromNode(sourceFileOfType)
+          const referencedTypeInArgument = statements?.[entityNameToString(typeNode.typeName)];
+
+          if (referencedTypeInArgument) {
+            return resolveTempChildNode(nodeToAst(referencedTypeInArgument, file, checker, program, typeArguments), true)
+          }
+        }
+      })()
+    }
+
+    return {
+      ...args,
+      [argNode.name]: argNode
+    }
+  }, {}) ?? {}
+}
+
+const resolveTypeParameters = (typeParams: ts.NodeArray<ts.TypeParameterDeclaration> | undefined, file: ts.SourceFile, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments): TypeArguments => {
+  return resolveTypeArguments(typeParams, file, checker, program, typeArguments, typeParam => typeParam.default!, typeParam => typeParam.name.text)
+}
+
 type TypeArguments = {
   [name: string]: TypeArgumentNode
 }
@@ -424,7 +459,8 @@ const nodeToAst = (node: ts.Node, file: ts.SourceFile, checker: ts.TypeChecker, 
     }
   }
   else if (ts.isTypeAliasDeclaration(node)) {
-    return nodeToAst(node.type, file, checker, program, typeArguments, resolveReference)
+    const newTypeArguments = resolveTypeParameters(node.typeParameters, file, checker, program, typeArguments)
+    return nodeToAst(node.type, file, checker, program, { ...newTypeArguments, ...typeArguments}, resolveReference)
   }
   else if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node)) {
     const jsDoc = parseNodeDoc(ts.isInterfaceDeclaration(node) ? node : node.parent)
@@ -519,52 +555,13 @@ const nodeToAst = (node: ts.Node, file: ts.SourceFile, checker: ts.TypeChecker, 
         }
       })()
 
-      const newTypeArguments = node.typeArguments.map(
-        typeNode => {
-          const referenced = nodeToAst(typeNode, file, checker, program, typeArguments)
+      const newTypeArguments = resolveTypeArguments(node.typeArguments, file, checker, program, typeArguments, typeArg => typeArg, (_, index) => typeParameters[index]?.name.text ?? "")
 
-          if (referenced.kind === NodeKind.TypeArgument) {
-            return referenced
-          }
-          else {
-            return {
-              referenced,
-              resolved: (() => {
-                if (ts.isTypeReferenceNode(typeNode)) {
-                  const type = checker.getTypeFromTypeNode(typeNode)
-                  const sourceFileOfType = type.getSymbol()?.declarations?.[0]?.getSourceFile()
-                  const statements = sourceFileOfType && typeDefinitionsFromNode(sourceFileOfType)
-                  const referencedTypeInArgument = statements?.[entityNameToString(typeNode.typeName)];
-
-                  if (referencedTypeInArgument) {
-                    return resolveTempChildNode(nodeToAst(referencedTypeInArgument, file, checker, program, typeArguments), true)
-                  }
-                }
-              })()
-            }
-          }
-        }
-      )
-
-      if (typeParameters.length !== newTypeArguments.length) {
+      if (typeParameters.length !== Object.keys(newTypeArguments).length) {
         throw new Error(`resolving type parameters failed due to a different number of arguments provided`)
       }
 
-      const newTypeArgumentsMap = Object.fromEntries(
-        typeParameters.map(
-          (key, index) => {
-            const argNode: TypeArgumentNode = {
-              kind: NodeKind.TypeArgument,
-              name: key.name.text,
-              ...newTypeArguments[index]!
-            }
-
-            return [key.name.text, argNode]
-          }
-        )
-      )
-
-      return nodeToAst(referencedType, file, checker, program, newTypeArgumentsMap)
+      return nodeToAst(referencedType, file, checker, program, newTypeArguments)
     }
     else {
       const name = ts.isIdentifier(node.typeName)
