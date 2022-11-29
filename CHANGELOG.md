@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.17](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.16...v0.5.17) (2022-11-29)
+
+
+### Features
+
+* add verbose option ([029da1c](https://github.com/elyukai/optolith-tsjsonschemamd/commit/029da1c612dc5d4d6e08a9909884d4c6cc547fda))
+
 ### [0.5.16](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.15...v0.5.16) (2022-08-01)
 
 
