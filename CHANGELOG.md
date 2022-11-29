@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.18](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.17...v0.5.18) (2022-11-29)
+
+
+### Features
+
+* generate json schema for types with defaulted type parameters ([0dc5859](https://github.com/elyukai/optolith-tsjsonschemamd/commit/0dc58598211d7238478d094422a9ce6c14eb8a06))
+
 ### [0.5.17](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.16...v0.5.17) (2022-11-29)
 
 
