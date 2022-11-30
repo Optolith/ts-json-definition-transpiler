@@ -410,6 +410,11 @@ const identifierToImportDeclaration = (node: ts.Node, typeName?: string, namespa
 const resolveTypeArguments = <T extends ts.Node>(typeArgs: ts.NodeArray<T> | undefined, file: ts.SourceFile, checker: ts.TypeChecker, program: ts.Program, typeArguments: TypeArguments, getTypeNode: (arg: T) => ts.TypeNode, getName: (arg: T, index: number) => string): TypeArguments => {
   return typeArgs?.reduce<TypeArguments>((args, typeArg, index) => {
     const typeNode = getTypeNode(typeArg)
+
+    if (typeNode === undefined) {
+      return args
+    }
+
     const referenced = nodeToAst(typeNode, file, checker, program, typeArguments)
 
     const argNode: TypeArgumentNode = referenced.kind === NodeKind.TypeArgument ? referenced : {
