@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.19](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.18...v0.5.19) (2022-11-30)
+
+
+### Bug Fixes
+
+* skip resolving type parameters for non-generic type definitions ([3e6e373](https://github.com/elyukai/optolith-tsjsonschemamd/commit/3e6e373592de0159f97c6b59b7826f4c4a736ae0))
+
 ### [0.5.18](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.17...v0.5.18) (2022-11-29)
 
 
