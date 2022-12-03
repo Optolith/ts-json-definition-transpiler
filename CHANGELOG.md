@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.20](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.19...v0.5.20) (2022-12-03)
+
+
+### Bug Fixes
+
+* import resolving of types used in generic types ([955f568](https://github.com/elyukai/optolith-tsjsonschemamd/commit/955f568e24c657c010fce604be627b2d8269db91))
+
 ### [0.5.19](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.18...v0.5.19) (2022-11-30)
 
 
