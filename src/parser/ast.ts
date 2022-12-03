@@ -1,4 +1,4 @@
-import { dirname, extname, format, parse, relative, resolve, sep } from "path"
+import { dirname, extname, format, join, parse, relative, resolve, sep } from "path"
 import ts from "typescript"
 import { Doc, parseModuleDoc, parseNodeDoc } from "./doc.js"
 
@@ -616,23 +616,33 @@ const nodeToAst = (node: ts.Node, file: ts.SourceFile, checker: ts.TypeChecker, 
       const getPathFromImportDeclaration = (imp: ts.ImportDeclaration | undefined) =>
         imp?.moduleSpecifier.getText().replace(/^(["'])(.+)\1$/, "$2")
 
-      const matchingImportNode = identifierToImportDeclaration(node, outerMostReference, alternativeOuterMostReference)
-      const externalFilePathFromImport = emptyPathToUndefined(removeExtension(getPathFromImportDeclaration(matchingImportNode)))
+      const associatedImportNodeForType = identifierToImportDeclaration(node, outerMostReference, alternativeOuterMostReference)
+      const externalFilePathFromImport = emptyPathToUndefined(getPathFromImportDeclaration(associatedImportNodeForType))
 
       const originFileName = file.fileName
       const currentFileName = node.getSourceFile().fileName
 
+      const getPathToReferencedTypeFromOriginFile = () => {
+        const fileDifference = relative(dirname(file.fileName), currentFileName)
+
+        const joinedReferencedTypeFileViaImport = externalFilePathFromImport === undefined
+          ? fileDifference
+          : join(fileDifference, "..", externalFilePathFromImport.split("/").join(sep))
+
+        return emptyPathToUndefined(appendCurrentDir(removeExtension(joinedReferencedTypeFileViaImport)))
+      }
+
       const externalFilePathFromFilePaths =
         originFileName === currentFileName
           ? undefined
-          : emptyPathToUndefined(appendCurrentDir(removeExtension(relative(dirname(file.fileName), node.getSourceFile().fileName))))
+          : getPathToReferencedTypeFromOriginFile()
 
       return {
         kind: NodeKind.Reference,
         jsDoc,
         name,
         parentGroup,
-        externalFilePath: externalFilePathFromImport ?? externalFilePathFromFilePaths,
+        externalFilePath: externalFilePathFromFilePaths ?? removeExtension(externalFilePathFromImport),
       }
     }
   }
