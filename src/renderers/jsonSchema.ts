@@ -1,5 +1,5 @@
-import { EOL } from "os"
-import { sep } from "path"
+import { EOL } from "node:os"
+import { sep } from "node:path"
 import { AstTransformer, Renderer } from "../main.js"
 import { ChildNode, NodeKind, TokenKind, parentGroupToArray } from "../parser/ast.js"
 import { Doc } from "../parser/doc.js"

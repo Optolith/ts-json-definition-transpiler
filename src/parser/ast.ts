@@ -1,4 +1,4 @@
-import { dirname, extname, format, join, parse, relative, resolve, sep } from "path"
+import { dirname, extname, format, join, parse, relative, resolve, sep } from "node:path"
 import ts from "typescript"
 import { Doc, parseModuleDoc, parseNodeDoc } from "./doc.js"
 

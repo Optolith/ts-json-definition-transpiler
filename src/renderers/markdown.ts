@@ -1,6 +1,6 @@
-import { EOL } from "os"
+import { EOL } from "node:os"
 import { AstTransformer, Renderer } from "../main.js"
-import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, LiteralNode, NodeKind, parentGroupToArray, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode } from "../parser/ast.js"
+import { ArrayNode, ChildNode, DictionaryNode, EnumerationNode, LiteralNode, NodeKind, RecordNode, ReferenceNode, RootNode, TokenKind, TokenNode, TupleNode, UnionNode, parentGroupToArray } from "../parser/ast.js"
 import { Doc } from "../parser/doc.js"
 
 const h = (level: number, text: string, anchor?: string) => {
