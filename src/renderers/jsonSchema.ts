@@ -1,7 +1,7 @@
 import { EOL } from "os"
 import { sep } from "path"
 import { AstTransformer, Renderer } from "../main.js"
-import { ChildNode, NodeKind, parentGroupToArray, TokenKind } from "../parser/ast.js"
+import { ChildNode, NodeKind, TokenKind, parentGroupToArray } from "../parser/ast.js"
 import { Doc } from "../parser/doc.js"
 import { DocTagTypes } from "../parser/doctags.js"
 
@@ -363,9 +363,9 @@ const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
   }
 
 export enum Spec {
-  Draft_07 = 1,
-  Draft_2019_09 = 2,
-  Draft_2020_12 = 3,
+  Draft_07 = "Draft_07",
+  Draft_2019_09 = "Draft_2019_09",
+  Draft_2020_12 = "Draft_2020_12",
 }
 
 const defsKey = (spec: Spec): string => {
