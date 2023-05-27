@@ -5,8 +5,7 @@
   "compilerOptions": {
     "strict": true,
     "lib": ["ESNext"],
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "NodeNext",
     "target": "ESNext",
     "allowSyntheticDefaultImports": true,
     "noFallthroughCasesInSwitch": true,
