@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.7.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.6.0...v0.7.0) (2023-05-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* extract json schema specification type into separate module
+
+* extract json schema specification type into separate module ([0c9f32b](https://github.com/elyukai/optolith-tsjsonschemamd/commit/0c9f32bec1df5fe3cdf63735903a67c000dc6cd1))
+
 ## [0.6.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.5.20...v0.6.0) (2023-05-27)
 
 
