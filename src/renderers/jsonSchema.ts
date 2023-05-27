@@ -1,5 +1,6 @@
 import { EOL } from "node:os"
 import { sep } from "node:path"
+import { JsonSchemaSpec } from "../config.js"
 import { AstTransformer, Renderer } from "../main.js"
 import { ChildNode, NodeKind, TokenKind, parentGroupToArray } from "../parser/ast.js"
 import { Doc } from "../parser/doc.js"
@@ -197,7 +198,7 @@ const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: Doc | undefined
       : []
   )
 
-const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
+const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => {
   switch (node.kind) {
     case NodeKind.Record: {
       return {
@@ -342,7 +343,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
 const toForwardSlashAbsolutePath = (path: string) => "/" + path.split(sep).join("/")
 
 type TransformerOptions = {
-  spec: Spec
+  spec: JsonSchemaSpec
 }
 
 const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
@@ -362,12 +363,7 @@ const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
     return `${JSON.stringify(jsonSchema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
   }
 
-export type Spec =
-  | "Draft_07"
-  | "Draft_2019_09"
-  | "Draft_2020_12"
-
-const defsKey = (spec: Spec): string => {
+const defsKey = (spec: JsonSchemaSpec): string => {
   switch (spec) {
     case "Draft_07": return "definitions"
     case "Draft_2019_09":
@@ -376,7 +372,7 @@ const defsKey = (spec: Spec): string => {
   }
 }
 
-const schemaUri = (spec: Spec): string => {
+const schemaUri = (spec: JsonSchemaSpec): string => {
   switch (spec) {
     case "Draft_07": return "https://json-schema.org/draft-07/schema"
     case "Draft_2019_09": return "https://json-schema.org/draft/2019-09/schema"
@@ -390,11 +386,11 @@ type RendererOptions = {
    * The used JSON Schema specification.
    * @default Spec.Draft_2020_12
    */
-  spec?: Spec
+  spec?: JsonSchemaSpec
 }
 
 export const jsonSchemaRenderer = ({
-  spec = "Draft_2020_12"
+  spec = JsonSchemaSpec.Draft_2020_12
 }: RendererOptions = {}): Renderer => Object.freeze({
   transformer: astToJsonSchema({ spec }),
   fileExtension: ".schema.json",

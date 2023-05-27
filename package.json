@@ -12,6 +12,7 @@
   "main": "./lib/main.js",
   "exports": {
     ".": "./lib/main.js",
+    "./config": "./lib/config.js",
     "./renderers": "./lib/renderers.js"
   },
   "scripts": {
