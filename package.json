@@ -14,14 +14,6 @@
     ".": "./lib/main.js",
     "./renderers": "./lib/renderers.js"
   },
-  "types": "./lib/main.d.ts",
-  "typesVersions": {
-    "*": {
-      "renderers": [
-        "./lib/renderers.d.ts"
-      ]
-    }
-  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
