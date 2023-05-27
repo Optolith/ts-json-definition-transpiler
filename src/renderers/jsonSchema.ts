@@ -384,13 +384,13 @@ const schemaUri = (spec: JsonSchemaSpec): string => {
 type RendererOptions = {
   /**
    * The used JSON Schema specification.
-   * @default Spec.Draft_2020_12
+   * @default "Draft_2020_12"
    */
   spec?: JsonSchemaSpec
 }
 
 export const jsonSchemaRenderer = ({
-  spec = JsonSchemaSpec.Draft_2020_12
+  spec = "Draft_2020_12"
 }: RendererOptions = {}): Renderer => Object.freeze({
   transformer: astToJsonSchema({ spec }),
   fileExtension: ".schema.json",
