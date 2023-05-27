@@ -255,8 +255,8 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
     }
     case NodeKind.Tuple: {
       switch (spec) {
-        case Spec.Draft_07:
-        case Spec.Draft_2019_09: return {
+        case "Draft_07":
+        case "Draft_2019_09": return {
           ...toAnnotations(node.jsDoc),
           type: "array",
           items: node.elements.map(element => nodeToDefinition(spec, element)),
@@ -265,7 +265,7 @@ const nodeToDefinition = (spec: Spec, node: ChildNode): Definition => {
           maxItems: node.elements.length,
           additionalItems: false,
         }
-        case Spec.Draft_2020_12: return {
+        case "Draft_2020_12": return {
           ...toAnnotations(node.jsDoc),
           type: "array",
           prefixItems: node.elements.map(element => nodeToDefinition(spec, element)),
@@ -362,26 +362,25 @@ const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
     return `${JSON.stringify(jsonSchema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
   }
 
-export enum Spec {
-  Draft_07 = "Draft_07",
-  Draft_2019_09 = "Draft_2019_09",
-  Draft_2020_12 = "Draft_2020_12",
-}
+export type Spec =
+  | "Draft_07"
+  | "Draft_2019_09"
+  | "Draft_2020_12"
 
 const defsKey = (spec: Spec): string => {
   switch (spec) {
-    case Spec.Draft_07: return "definitions"
-    case Spec.Draft_2019_09:
-    case Spec.Draft_2020_12: return "$defs"
+    case "Draft_07": return "definitions"
+    case "Draft_2019_09":
+    case "Draft_2020_12": return "$defs"
     default: throw TypeError("invalid spec")
   }
 }
 
 const schemaUri = (spec: Spec): string => {
   switch (spec) {
-    case Spec.Draft_07: return "https://json-schema.org/draft-07/schema"
-    case Spec.Draft_2019_09: return "https://json-schema.org/draft/2019-09/schema"
-    case Spec.Draft_2020_12: return "https://json-schema.org/draft/2020-12/schema"
+    case "Draft_07": return "https://json-schema.org/draft-07/schema"
+    case "Draft_2019_09": return "https://json-schema.org/draft/2019-09/schema"
+    case "Draft_2020_12": return "https://json-schema.org/draft/2020-12/schema"
     default: throw TypeError("invalid spec")
   }
 }
@@ -395,7 +394,7 @@ type RendererOptions = {
 }
 
 export const jsonSchemaRenderer = ({
-  spec = Spec.Draft_2020_12
+  spec = "Draft_2020_12"
 }: RendererOptions = {}): Renderer => Object.freeze({
   transformer: astToJsonSchema({ spec }),
   fileExtension: ".schema.json",
