@@ -31,10 +31,10 @@
   "author": "Lukas Obermann",
   "license": "MPL-2.0",
   "dependencies": {
-    "typescript": "^4.7.4"
+    "typescript": "^5.0.4"
   },
   "devDependencies": {
-    "@types/node": "^18.11.9",
+    "@types/node": "^20.2.5",
     "standard-version": "^9.5.0",
     "ts-node": "^10.9.1"
   },
