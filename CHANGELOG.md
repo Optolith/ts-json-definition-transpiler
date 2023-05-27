@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.8.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.7.0...v0.8.0) (2023-05-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* convert json schema specification enum to union type
+
+* convert json schema specification enum to union type ([b09773f](https://github.com/elyukai/optolith-tsjsonschemamd/commit/b09773f475d084fae3c6ac4e2bad48109ec4aa07))
+
 ## [0.7.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.6.0...v0.7.0) (2023-05-27)
 
 
