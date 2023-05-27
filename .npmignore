@@ -1,5 +1,6 @@
 .github
 .versionrc.json
 .vscode
+CODEOWNERS
 src
 tsconfig.json
