@@ -3,4 +3,5 @@
 .vscode
 CODEOWNERS
 src
+test
 tsconfig.json
