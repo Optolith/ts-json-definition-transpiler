@@ -18,10 +18,10 @@ const cliOptions = argv.slice(2)
     [undefined, new Map()]
   )[1]
 
-const optionsPath = resolve(cwd(), cliOptions.get("c")?.[0] ?? cliOptions.get("config")?.[0] ?? "otjsmd.config.js")
+const optionsPath = resolve(cwd(), cliOptions.get("-c")?.[0] ?? cliOptions.get("--config")?.[0] ?? "otjsmd.config.js")
 const options = (await import(optionsPath)).default as GeneratorOptions
 
-if (cliOptions.has("w") || cliOptions.has("watch")) {
+if (cliOptions.has("-w") || cliOptions.has("--watch")) {
   try {
     generate(options)
   }
