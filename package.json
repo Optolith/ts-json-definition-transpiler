@@ -15,6 +15,9 @@
     "./config": "./lib/config.js",
     "./renderers": "./lib/renderers.js"
   },
+  "bin": {
+    "otjsmd": "./lib/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

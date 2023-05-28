@@ -18,6 +18,8 @@ npm i -D optolith-tsjsonschemamd
 
 ## Usage
 
+### Programmatic Usage
+
 ```ts
 import { generate } from "optolith-tsjsonschemamd";
 import { jsonSchema, markdown } from "optolith-tsjsonschemamd/renderers";
@@ -45,13 +47,23 @@ generate({
 
 It does not do any clean-up in the target directories, it only overwrites existing files. You can activate this explicitly, though, for all outputs and for each output individually.
 
-The output directory structure as well as the contents of the files **mirror the TypeScript sources**. The relative directory structure inside the specified root source directory is mirrored and the contents are simply mapped, so that the output will not have any duplicate types, which are referenced by their relative path instead (except for generic types, see below).
+The output directory structure as well as the contents of the files **mirror the TypeScript sources**. The relative directory structure inside the specified root source directory is mirrored, and the contents are simply mapped, so that the output will not have any duplicate types, which are referenced by their relative path instead (except for generic types, see below).
 
 This also implies that all types must be present in the specified root source directory or its subdirectories, otherwise references/links in output files will not work.
 
 You can also build your own renderer by conforming to the `Renderer` type that can be imported.
 
 An error is thrown if the tool encounters an unsupported structure.
+
+### CLI Usage
+
+This package can also be used via the command line.
+
+```sh
+otjsmd [-w | --watch] [-c <path-to-config> | --config <path-to-config>]
+```
+
+Options must be defined in an ECMAScript module files, which defaults to a file called `otjsmd.config.js` in the directory where the command is run. You can specify a different path using the respective option. Supply the watch option to rebuild whenever a source file changes.
 
 ### Main type
 
