@@ -16,7 +16,7 @@
     "./renderers": "./lib/renderers.js"
   },
   "bin": {
-    "otjsmd": "./lib/cli.js"
+    "otjsmd": "./lib/bin/cli.js"
   },
   "scripts": {
     "build": "tsc",
