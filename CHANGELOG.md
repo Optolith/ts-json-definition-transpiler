@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.9.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.8.0...v0.9.0) (2023-05-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **markdown:** adjust renderer interface to match the json schema renderer
+
+### Features
+
+* **cli:** add option for usage as executable ([53b2858](https://github.com/elyukai/optolith-tsjsonschemamd/commit/53b28584c192ec95bc668250d31c6f85daaa23fb))
+* **markdown:** adjust renderer interface to match the json schema renderer ([179bdd7](https://github.com/elyukai/optolith-tsjsonschemamd/commit/179bdd791ed86b9ea33b84c1d56471f3424e8ecb))
+
 ## [0.8.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.7.0...v0.8.0) (2023-05-27)
 
 
