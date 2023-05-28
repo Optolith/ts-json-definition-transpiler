@@ -459,7 +459,7 @@ const astToMarkdown: AstTransformer = file => {
   ].join(EOL + EOL) + EOL
 }
 
-export const markdownRenderer: Renderer = Object.freeze({
+export const markdownRenderer = (): Renderer => Object.freeze({
   transformer: astToMarkdown,
   fileExtension: ".md",
 })

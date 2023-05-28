@@ -31,11 +31,11 @@ generate({
   outputs: [
     {
       targetDir: join(root, "schema"),
-      renderer: jsonSchema
+      renderer: jsonSchema({ spec: jsonSchemaSpec })
     },
     {
       targetDir: join(root, "docs", "reference"),
-      renderer: markdown
+      renderer: markdown()
     }
   ]
 })
