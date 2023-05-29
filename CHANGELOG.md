@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.9.3](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.9.2...v0.9.3) (2023-05-29)
+
+
+### Features
+
+* strip the complete .d.ts extension for output filenames ([9683113](https://github.com/elyukai/optolith-tsjsonschemamd/commit/96831131fe451c3d13a052fed382e1da3f8d8a71))
+
 ### [0.9.2](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.9.1...v0.9.2) (2023-05-28)
 
 
