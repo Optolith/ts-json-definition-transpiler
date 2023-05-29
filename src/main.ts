@@ -163,7 +163,7 @@ export const generate = (options: GeneratorOptions): void => {
   filteredFiles.forEach(file => {
     const relativePath = relative(sourceDir, file.fileName)
     const dir          = dirname(relativePath)
-    const name         = basename(relativePath, ".ts")
+    const name         = basename(relativePath).replace(/(?:\.d)?\.ts$/, "")
 
     try {
       if (verbose) {
