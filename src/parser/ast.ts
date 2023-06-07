@@ -67,6 +67,11 @@ export type RecordNode = {
        * The property value.
        */
       value: ChildNode
+
+      /**
+       * Is the property read-only?
+       */
+      isReadOnly: boolean
     }
   }
 }
@@ -493,7 +498,8 @@ const nodeToAst = (node: ts.Node, file: ts.SourceFile, checker: ts.TypeChecker, 
                   {
                     jsDoc: parseNodeDoc(member),
                     isRequired: member.questionToken === undefined,
-                    value: resolveTempChildNode(nodeToAst(member.type!, file, checker, program, typeArguments))
+                    value: resolveTempChildNode(nodeToAst(member.type!, file, checker, program, typeArguments)),
+                    isReadOnly: member.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ReadonlyKeyword) ?? false
                   }
                 ]
               ]

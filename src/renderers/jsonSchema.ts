@@ -13,6 +13,7 @@ interface Annotated {
   title?: string
   description?: string
   default?: unknown
+  readOnly?: boolean
 }
 
 interface ObjectConstraints {
@@ -198,7 +199,9 @@ const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: Doc | undefined
       : []
   )
 
-const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => {
+const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode, options: { isReadOnly?: boolean } = {}): Definition => {
+  const { isReadOnly } = options
+
   switch (node.kind) {
     case NodeKind.Record: {
       return {
@@ -207,11 +210,12 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
         ...toDefault(node.jsDoc),
         properties: Object.fromEntries(
           Object.entries(node.elements)
-            .map(([key, config]) => [key, nodeToDefinition(spec, config.value)])),
+            .map(([key, config]) => [key, nodeToDefinition(spec, config.value, { isReadOnly: config.isReadOnly })])),
         required: Object.entries(node.elements)
           .filter(([_, config]) => config.isRequired)
           .map(([key]) => key),
         ...toConstraints(node.jsDoc, "object"),
+        ...(isReadOnly ? { readOnly: false } : {}),
         additionalProperties: false
       }
     }
@@ -225,6 +229,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
             [node.pattern]: nodeToDefinition(spec, node.elements)
           },
           ...toConstraints(node.jsDoc, "object"),
+          ...(isReadOnly ? { readOnly: false } : {}),
           additionalProperties: false
         }
       }
@@ -234,7 +239,8 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
           type: "object",
           ...toDefault(node.jsDoc),
           additionalProperties: nodeToDefinition(spec, node.elements),
-          ...toConstraints(node.jsDoc, "object")
+          ...toConstraints(node.jsDoc, "object"),
+          ...(isReadOnly ? { readOnly: false } : {}),
         }
       }
     }
@@ -244,7 +250,8 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
         type: "array",
         ...toDefault(node.jsDoc),
         items: nodeToDefinition(spec, node.elements),
-        ...toConstraints(node.jsDoc, "array")
+        ...toConstraints(node.jsDoc, "array"),
+        ...(isReadOnly ? { readOnly: false } : {}),
       }
     }
     case NodeKind.Enumeration: {
@@ -252,6 +259,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
         ...toAnnotations(node.jsDoc),
         enum: node.cases.map(({ value }) => value),
         ...toDefault(node.jsDoc),
+        ...(isReadOnly ? { readOnly: false } : {}),
       }
     }
     case NodeKind.Tuple: {
@@ -265,6 +273,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
           minItems: node.elements.length,
           maxItems: node.elements.length,
           additionalItems: false,
+          ...(isReadOnly ? { readOnly: false } : {}),
         }
         case "Draft_2020_12": return {
           ...toAnnotations(node.jsDoc),
@@ -274,6 +283,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
           minItems: node.elements.length,
           maxItems: node.elements.length,
           items: false,
+          ...(isReadOnly ? { readOnly: false } : {}),
         }
         default: throw TypeError("invalid spec")
       }
@@ -283,6 +293,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
         ...toAnnotations(node.jsDoc),
         oneOf: node.cases.map(element => nodeToDefinition(spec, element)),
         ...toDefault(node.jsDoc),
+        ...(isReadOnly ? { readOnly: false } : {}),
       }
     }
     case NodeKind.Group: {
@@ -296,6 +307,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
         ...toAnnotations(node.jsDoc),
         const: node.value,
         ...toDefault(node.jsDoc),
+        ...(isReadOnly ? { readOnly: false } : {}),
       }
     }
     case NodeKind.Reference: {
@@ -306,6 +318,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
         ...toAnnotations(node.jsDoc),
         $ref: `${externalFilePath}#/${defsKey(spec)}/${qualifiedName}`,
         ...toDefault(node.jsDoc),
+        ...(isReadOnly ? { readOnly: false } : {}),
       }
     }
     case NodeKind.Token: {
@@ -315,7 +328,8 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
             ...toAnnotations(node.jsDoc),
             type: node.jsDoc?.tags.integer ? "integer" : "number",
             ...toDefault(node.jsDoc),
-            ...toConstraints(node.jsDoc, "number")
+            ...toConstraints(node.jsDoc, "number"),
+            ...(isReadOnly ? { readOnly: false } : {}),
           }
         }
 
@@ -324,7 +338,8 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
             ...toAnnotations(node.jsDoc),
             type: "string",
             ...toDefault(node.jsDoc),
-            ...toConstraints(node.jsDoc, "string")
+            ...toConstraints(node.jsDoc, "string"),
+            ...(isReadOnly ? { readOnly: false } : {}),
           }
         }
 
@@ -333,6 +348,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode): Definition => 
             ...toAnnotations(node.jsDoc),
             type: "boolean",
             ...toDefault(node.jsDoc),
+            ...(isReadOnly ? { readOnly: false } : {}),
           }
         }
       }

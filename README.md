@@ -86,8 +86,8 @@ Description | all | `markdown` | `description` keyword | Description
 `@markdown` | `string` | `boolean` | — | Type: Markdown-formatted text
 `@minLength` | `string` | `number` | `minLength` keyword | Minimum Length
 `@maxLength` | `string` | `number` | `maxLength` keyword | Maximum Length
-`@pattern` | `string` | `string` | `maxLength` keyword | Pattern
-`@format` | `string` | `string` | `maxLength` keyword | Format
+`@pattern` | `string` | `string` | `pattern` keyword | Pattern
+`@format` | `string` | `string` | `format` keyword | Format
 `@integer` | `number` | `boolean` | `"type": "integer"` instead of `"type": "number"` | Type: Integer
 `@minimum` | `number` | `number` | `minimum` keyword | Minimum
 `@maximum` | `number` | `number` | `maximum` keyword | Maximum
@@ -100,6 +100,7 @@ Description | all | `markdown` | `description` keyword | Description
 `@minProperties` | `object` | `number` | `minProperties` keyword | Minimum Properties
 `@maxProperties` | `object` | `number` | `maxProperties` keyword | Maximum Properties
 `@patternProperties` | `object` | `string` | `patternProperties` keyword | Values matching pattern
+`readonly` modifier | property | `boolean` | `readOnly` keyword | Read-only property
 
 #### Boolean tags
 
