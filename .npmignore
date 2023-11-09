@@ -1,7 +1,9 @@
 .github
+*.tsbuildinfo
 .versionrc.json
 .vscode
 CODEOWNERS
+libtest
 src
 test
 tsconfig.json

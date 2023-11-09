@@ -12,27 +12,29 @@
   "main": "./lib/main.js",
   "exports": {
     ".": "./lib/main.js",
-    "./config": "./lib/config.js",
-    "./renderers": "./lib/renderers.js"
+    "./ast": "./lib/ast.js",
+    "./renderers": "./lib/renderers.js",
+    "./renderers/*": "./lib/renderers/*.js"
   },
   "bin": {
     "otjsmd": "./lib/bin/cli.js"
   },
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
+    "build": "tsc -b",
+    "watch": "tsc -b -w",
     "release": "standard-version",
-    "test": "node --test"
+    "test": "glob -c \"node --import tsx --test\" \"./test/**/*.test.ts\""
   },
   "author": "Lukas Obermann",
   "license": "MPL-2.0",
   "dependencies": {
-    "typescript": "^5.1.6"
+    "typescript": "^5.2.2"
   },
   "devDependencies": {
-    "@types/node": "^20.2.5",
+    "@types/node": "^20.9.0",
+    "glob": "^10.3.10",
     "standard-version": "^9.5.0",
-    "ts-node": "^10.9.1"
+    "tsx": "^4.0.0"
   },
   "repository": "github:elyukai/optolith-tsjsonschemamd",
   "bugs": {

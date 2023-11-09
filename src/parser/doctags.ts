@@ -1,10 +1,11 @@
 import ts from "typescript"
+import { DocTagTypes, DocTags } from "../ast.js"
 import { flattenComment } from "./doccomment.js"
 
 /**
  * A dictionary from all supported tag names to their value types.
  */
-const docTagTypes = {
+const docTagTypes: DocTagTypes = {
   // General
   main: "string",
   title: "string",
@@ -34,49 +35,45 @@ const docTagTypes = {
   minItems: "integer",
   maxItems: "integer",
   uniqueItems: "boolean",
-} as const
-
-/**
- * A dictionary from all supported tag names to their JSON Schema data types.
- */
-export type DocTagTypes = typeof docTagTypes
-
-/**
- * A dictionary from all supported data types in JSON Schema to their
- * corresponding TypeScript data types.
- */
-type JSONSchemaTypeToTypeScriptType = {
-  number: number
-  integer: number
-  boolean: boolean
-  string: string
-  unknown: unknown
 }
 
-/**
- * A dictionary from all supported tags to their values.
- */
-export type DocTags = {
-  -readonly [K in keyof DocTagTypes]?: JSONSchemaTypeToTypeScriptType[DocTagTypes[K]]
-}
-
-const parseDocTagComment = <K extends keyof DocTags>(name: K, comment: string | undefined): DocTags[K] => {
+const parseDocTagComment = <K extends keyof DocTags>(
+  name: K,
+  comment: string | undefined
+): DocTags[K] => {
   switch (docTagTypes[name]) {
-    case "boolean": return (comment === "true" || !comment) as DocTags[K]
-    case "number":  return (comment === undefined ? 0 : Number.parseFloat(comment)) as DocTags[K]
-    case "integer": return (comment === undefined ? 0 : Number.parseInt(comment)) as DocTags[K]
-    case "unknown": return (comment === undefined ? undefined : JSON.parse(comment)) as DocTags[K]
-    default:        return (comment ?? "") as DocTags[K]
+    case "boolean":
+      return (comment === "true" || !comment) as DocTags[K]
+    case "number":
+      return (
+        comment === undefined ? 0 : Number.parseFloat(comment)
+      ) as DocTags[K]
+    case "integer":
+      return (
+        comment === undefined ? 0 : Number.parseInt(comment)
+      ) as DocTags[K]
+    case "unknown":
+      return (
+        comment === undefined ? undefined : JSON.parse(comment)
+      ) as DocTags[K]
+    default:
+      return (comment ?? "") as DocTags[K]
   }
 }
 
-const parseDocTag = (tag: ts.JSDocTag): [keyof DocTags, DocTags[keyof DocTags]] => [
+const parseDocTag = (
+  tag: ts.JSDocTag
+): [keyof DocTags, DocTags[keyof DocTags]] => [
   tag.tagName.text as keyof DocTags,
-  parseDocTagComment(tag.tagName.text as keyof DocTags, flattenComment(tag.comment))
+  parseDocTagComment(
+    tag.tagName.text as keyof DocTags,
+    flattenComment(tag.comment)
+  ),
 ]
 
 /**
  * Parses all JSON Schema tags into their proper types.
  */
-export const parseDocTags = (tags: ts.NodeArray<ts.JSDocTag> | undefined): DocTags =>
-  Object.fromEntries(tags?.map(parseDocTag) ?? [])
+export const parseDocTags = (
+  tags: ts.NodeArray<ts.JSDocTag> | undefined
+): DocTags => Object.fromEntries(tags?.map(parseDocTag) ?? [])

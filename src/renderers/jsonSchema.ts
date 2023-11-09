@@ -1,10 +1,20 @@
 import { EOL } from "node:os"
-import { sep } from "node:path"
-import { JsonSchemaSpec } from "../config.js"
+import { sep } from "node:path/posix"
+import {
+  ChildNode,
+  Doc,
+  DocTagTypes,
+  NodeKind,
+  RootNode,
+  StatementNode,
+  TokenKind,
+} from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
-import { ChildNode, NodeKind, TokenKind, parentGroupToArray } from "../parser/ast.js"
-import { Doc } from "../parser/doc.js"
-import { DocTagTypes } from "../parser/doctags.js"
+import { assertExhaustive } from "../utils/assertExhaustive.js"
+import {
+  getFullyQualifiedNameAsPath,
+  getRelativeExternalPath,
+} from "../utils/references.js"
 
 /**
  * Descriptive annotations of the JSON type definition
@@ -30,14 +40,17 @@ interface StrictObject extends ObjectBase {
     [key: string]: Definition
   }
   required: string[]
-  additionalProperties: false
+  additionalProperties?: boolean
 }
+
+const isStrictObject = (def: Definition): def is StrictObject =>
+  typeof def === "object" && "properties" in def
 
 interface PatternDictionary extends ObjectBase {
   patternProperties: {
     [pattern: string]: Definition
   }
-  additionalProperties: false
+  additionalProperties?: boolean
 }
 
 interface Dictionary extends ObjectBase {
@@ -62,7 +75,7 @@ interface Tuple07 extends Annotated {
   items: Definition[]
   minItems: number
   maxItems: number
-  additionalItems: false
+  additionalItems: boolean
 }
 
 interface Tuple202012 extends Annotated {
@@ -104,6 +117,11 @@ interface Union extends Annotated {
   oneOf: Definition[]
 }
 
+interface Intersection extends Annotated {
+  allOf: Definition[]
+  unresolvedProperties?: boolean
+}
+
 interface Constant extends Annotated {
   const: string | number | boolean
 }
@@ -116,8 +134,11 @@ interface Reference extends Annotated {
   $ref: string
 }
 
+const isReference = (def: Definition): def is Reference =>
+  typeof def === "object" && "$ref" in def
+
 interface Group {
-  "guard Group": any
+  _groupBrand: any
   [identifier: string]: Definition
 }
 
@@ -131,43 +152,29 @@ type Definition =
   | Boolean
   | Reference
   | Union
+  | Intersection
   | Constant
   | Enum
   | Tuple
   | Group
-
-export interface JsonSchema_07 extends Annotated {
-  $schema: string
-  $id: string
-  $ref?: string
-  definitions: {
-    [id: string]: Definition
-  }
-}
-
-export interface JsonSchema_2019_09 extends Annotated {
-  $schema: string
-  $id: string
-  $ref?: string
-  $defs: {
-    [id: string]: Definition
-  }
-}
 
 const toAnnotations = (jsDoc: Doc | undefined) => ({
   title: jsDoc?.tags.title,
   description: jsDoc?.comment,
 })
 
-const toDefault = (jsDoc: Doc | undefined) => jsDoc?.tags.default !== undefined ? {
-  default: jsDoc?.tags.default,
-} : undefined
+const toDefault = (jsDoc: Doc | undefined) =>
+  jsDoc?.tags.default !== undefined
+    ? {
+        default: jsDoc?.tags.default,
+      }
+    : undefined
 
 type ConstraintsByType = {
-  number: NumberConstraints,
-  string: StringConstraints,
-  object: ObjectConstraints,
-  array: ArrayConstraints,
+  number: NumberConstraints
+  string: StringConstraints
+  object: ObjectConstraints
+  array: ArrayConstraints
 }
 
 type IgnoreValue<T> = { [K in keyof T]-?: 0 }
@@ -176,31 +183,46 @@ type IgnoreValueEach<T> = { [K in keyof T]: IgnoreValue<T[K]> }
 
 // ensures that each key is present in a runtime object
 const constraintsByType: IgnoreValueEach<ConstraintsByType> = {
-  number: { maximum: 0, minimum: 0, exclusiveMinimum: 0, exclusiveMaximum: 0, multipleOf: 0 },
+  number: {
+    maximum: 0,
+    minimum: 0,
+    exclusiveMinimum: 0,
+    exclusiveMaximum: 0,
+    multipleOf: 0,
+  },
   string: { minLength: 0, maxLength: 0, format: 0, pattern: 0 },
   object: { minProperties: 0, maxProperties: 0 },
   array: { minItems: 0, maxItems: 0, uniqueItems: 0 },
 }
 
-const toConstraints = <T extends keyof ConstraintsByType>(jsDoc: Doc | undefined, type: T): ConstraintsByType[T] =>
+const toConstraints = <T extends keyof ConstraintsByType>(
+  jsDoc: Doc | undefined,
+  type: T
+): ConstraintsByType[T] =>
   Object.fromEntries(
     jsDoc
-      ? (Object.keys(constraintsByType[type]) as (keyof ConstraintsByType[T])[])
-        .flatMap(
-          (key) => {
-            if (jsDoc.tags[key as keyof DocTagTypes] !== undefined) {
-              return [[key, jsDoc.tags[key as keyof DocTagTypes]]]
-            }
-            else {
-              return []
-            }
+      ? (
+          Object.keys(constraintsByType[type]) as (keyof ConstraintsByType[T])[]
+        ).flatMap((key) => {
+          if (jsDoc.tags[key as keyof DocTagTypes] !== undefined) {
+            return [[key, jsDoc.tags[key as keyof DocTagTypes]]]
+          } else {
+            return []
           }
-        )
+        })
       : []
   )
 
-const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode, options: { isReadOnly?: boolean } = {}): Definition => {
-  const { isReadOnly } = options
+const nodeToDefinition = (
+  node: ChildNode,
+  file: RootNode,
+  options: Required<JsonSchemaRendererOptions>,
+  shallowOptions: {
+    isReadOnly?: boolean
+  } = {}
+): Definition => {
+  const { spec, allowAdditionalProperties } = options
+  const { isReadOnly } = shallowOptions
 
   switch (node.kind) {
     case NodeKind.Record: {
@@ -209,14 +231,19 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode, options: { isRe
         type: "object",
         ...toDefault(node.jsDoc),
         properties: Object.fromEntries(
-          Object.entries(node.elements)
-            .map(([key, config]) => [key, nodeToDefinition(spec, config.value, { isReadOnly: config.isReadOnly })])),
-        required: Object.entries(node.elements)
+          Object.entries(node.children).map(([key, config]) => [
+            key,
+            nodeToDefinition(config.value, file, options, {
+              isReadOnly: config.isReadOnly,
+            }),
+          ])
+        ),
+        required: Object.entries(node.children)
           .filter(([_, config]) => config.isRequired)
           .map(([key]) => key),
         ...toConstraints(node.jsDoc, "object"),
-        ...(isReadOnly ? { readOnly: false } : {}),
-        additionalProperties: false
+        ...(isReadOnly ? { readOnly: true } : undefined),
+        additionalProperties: allowAdditionalProperties,
       }
     }
     case NodeKind.Dictionary: {
@@ -226,21 +253,20 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode, options: { isRe
           type: "object",
           ...toDefault(node.jsDoc),
           patternProperties: {
-            [node.pattern]: nodeToDefinition(spec, node.elements)
+            [node.pattern]: nodeToDefinition(node.children, file, options),
           },
           ...toConstraints(node.jsDoc, "object"),
-          ...(isReadOnly ? { readOnly: false } : {}),
-          additionalProperties: false
+          ...(isReadOnly ? { readOnly: true } : undefined),
+          additionalProperties: allowAdditionalProperties,
         }
-      }
-      else {
+      } else {
         return {
           ...toAnnotations(node.jsDoc),
           type: "object",
           ...toDefault(node.jsDoc),
-          additionalProperties: nodeToDefinition(spec, node.elements),
+          additionalProperties: nodeToDefinition(node.children, file, options),
           ...toConstraints(node.jsDoc, "object"),
-          ...(isReadOnly ? { readOnly: false } : {}),
+          ...(isReadOnly ? { readOnly: true } : undefined),
         }
       }
     }
@@ -249,76 +275,108 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode, options: { isRe
         ...toAnnotations(node.jsDoc),
         type: "array",
         ...toDefault(node.jsDoc),
-        items: nodeToDefinition(spec, node.elements),
+        items: nodeToDefinition(node.children, file, options),
         ...toConstraints(node.jsDoc, "array"),
-        ...(isReadOnly ? { readOnly: false } : {}),
-      }
-    }
-    case NodeKind.Enumeration: {
-      return {
-        ...toAnnotations(node.jsDoc),
-        enum: node.cases.map(({ value }) => value),
-        ...toDefault(node.jsDoc),
-        ...(isReadOnly ? { readOnly: false } : {}),
+        ...(isReadOnly ? { readOnly: true } : undefined),
       }
     }
     case NodeKind.Tuple: {
       switch (spec) {
-        case "Draft_07":
-        case "Draft_2019_09": return {
-          ...toAnnotations(node.jsDoc),
-          type: "array",
-          items: node.elements.map(element => nodeToDefinition(spec, element)),
-          ...toDefault(node.jsDoc),
-          minItems: node.elements.length,
-          maxItems: node.elements.length,
-          additionalItems: false,
-          ...(isReadOnly ? { readOnly: false } : {}),
-        }
-        case "Draft_2020_12": return {
-          ...toAnnotations(node.jsDoc),
-          type: "array",
-          prefixItems: node.elements.map(element => nodeToDefinition(spec, element)),
-          ...toDefault(node.jsDoc),
-          minItems: node.elements.length,
-          maxItems: node.elements.length,
-          items: false,
-          ...(isReadOnly ? { readOnly: false } : {}),
-        }
-        default: throw TypeError("invalid spec")
+        case JsonSchemaSpec.Draft_07:
+        case JsonSchemaSpec.Draft_2019_09:
+          return {
+            ...toAnnotations(node.jsDoc),
+            type: "array",
+            items: node.children.map((child) =>
+              nodeToDefinition(child, file, options)
+            ),
+            ...toDefault(node.jsDoc),
+            minItems: node.children.length,
+            maxItems: node.children.length,
+            additionalItems: false,
+            ...(isReadOnly ? { readOnly: true } : undefined),
+          }
+        case JsonSchemaSpec.Draft_2020_12:
+          return {
+            ...toAnnotations(node.jsDoc),
+            type: "array",
+            prefixItems: node.children.map((child) =>
+              nodeToDefinition(child, file, options)
+            ),
+            ...toDefault(node.jsDoc),
+            minItems: node.children.length,
+            maxItems: node.children.length,
+            items: false,
+            ...(isReadOnly ? { readOnly: true } : undefined),
+          }
+        default:
+          return assertExhaustive(spec, "invalid spec")
       }
     }
     case NodeKind.Union: {
       return {
         ...toAnnotations(node.jsDoc),
-        oneOf: node.cases.map(element => nodeToDefinition(spec, element)),
+        oneOf: node.children.map((child) =>
+          nodeToDefinition(child, file, options)
+        ),
         ...toDefault(node.jsDoc),
-        ...(isReadOnly ? { readOnly: false } : {}),
+        ...(isReadOnly ? { readOnly: true } : undefined),
       }
     }
-    case NodeKind.Group: {
-      return Object.fromEntries(
-        Object.entries(node.elements)
-          .map(([key, node]) => [key, nodeToDefinition(spec, node)])
-      ) as Group
+    case NodeKind.Intersection: {
+      const allOf = node.children.map((child) =>
+        nodeToDefinition(child, file, options)
+      )
+
+      const base = {
+        ...toAnnotations(node.jsDoc),
+        allOf,
+        ...toDefault(node.jsDoc),
+        ...(isReadOnly ? { readOnly: true } : undefined),
+      }
+
+      if (allOf.every((e) => isStrictObject(e) || isReference(e))) {
+        if (isUnresolvedPropertiesSupported(spec)) {
+          allOf.forEach(
+            (e) =>
+              "additionalProperties" in e &&
+              typeof e.additionalProperties === "boolean" &&
+              delete e.additionalProperties
+          )
+          return {
+            ...base,
+            unresolvedProperties: allowAdditionalProperties,
+          }
+        } else {
+          console.warn(
+            'The requested JSON Schema spec does not support intersecting record types with "additionalProperties" set to false, which will likely result in unexpected validation errors. Consider switching to a newer JSON Schema spec or do not use intersection types.'
+          )
+        }
+      }
+
+      return base
     }
     case NodeKind.Literal: {
       return {
         ...toAnnotations(node.jsDoc),
         const: node.value,
         ...toDefault(node.jsDoc),
-        ...(isReadOnly ? { readOnly: false } : {}),
+        ...(isReadOnly ? { readOnly: true } : undefined),
       }
     }
     case NodeKind.Reference: {
-      const externalFilePath = node.externalFilePath ? `${node.externalFilePath}.schema.json` : ""
-      const qualifiedName = [...parentGroupToArray(node.parentGroup), node.name].join("/")
+      const externalFilePath = getRelativeExternalPath(
+        node,
+        file,
+        ".schema.json"
+      )
+      const qualifiedName = getFullyQualifiedNameAsPath(node, file)
 
       return {
         ...toAnnotations(node.jsDoc),
         $ref: `${externalFilePath}#/${defsKey(spec)}/${qualifiedName}`,
         ...toDefault(node.jsDoc),
-        ...(isReadOnly ? { readOnly: false } : {}),
+        ...(isReadOnly ? { readOnly: true } : undefined),
       }
     }
     case NodeKind.Token: {
@@ -329,7 +387,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode, options: { isRe
             type: node.jsDoc?.tags.integer ? "integer" : "number",
             ...toDefault(node.jsDoc),
             ...toConstraints(node.jsDoc, "number"),
-            ...(isReadOnly ? { readOnly: false } : {}),
+            ...(isReadOnly ? { readOnly: true } : undefined),
           }
         }
 
@@ -339,7 +397,7 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode, options: { isRe
             type: "string",
             ...toDefault(node.jsDoc),
             ...toConstraints(node.jsDoc, "string"),
-            ...(isReadOnly ? { readOnly: false } : {}),
+            ...(isReadOnly ? { readOnly: true } : undefined),
           }
         }
 
@@ -348,22 +406,59 @@ const nodeToDefinition = (spec: JsonSchemaSpec, node: ChildNode, options: { isRe
             ...toAnnotations(node.jsDoc),
             type: "boolean",
             ...toDefault(node.jsDoc),
-            ...(isReadOnly ? { readOnly: false } : {}),
+            ...(isReadOnly ? { readOnly: true } : undefined),
           }
         }
       }
     }
+    default:
+      return assertExhaustive(node)
   }
 }
 
-const toForwardSlashAbsolutePath = (path: string) => "/" + path.split(sep).join("/")
+const statementToDefinition = (
+  node: StatementNode,
+  file: RootNode,
+  options: Required<JsonSchemaRendererOptions>,
+  shallowOptions: { isReadOnly?: boolean } = {}
+): Definition => {
+  const { isReadOnly } = shallowOptions
 
-type TransformerOptions = {
-  spec: JsonSchemaSpec
+  switch (node.kind) {
+    case NodeKind.TypeDefinition: {
+      return nodeToDefinition(node.definition, file, options)
+    }
+    case NodeKind.ExportAssignment: {
+      return nodeToDefinition(node.expression, file, options)
+    }
+    case NodeKind.Enumeration: {
+      return {
+        ...toAnnotations(node.jsDoc),
+        enum: node.children.map(({ value }) => value),
+        ...toDefault(node.jsDoc),
+        ...(isReadOnly ? { readOnly: true } : undefined),
+      }
+    }
+    case NodeKind.Group: {
+      return Object.fromEntries(
+        Object.entries(node.children).map(([key, node]) => [
+          key,
+          statementToDefinition(node, file, options),
+        ])
+      ) as Group
+    }
+    default:
+      return assertExhaustive(node, "invalid statement")
+  }
 }
 
-const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
+const toForwardSlashAbsolutePath = (path: string) =>
+  "/" + path.split(sep).join("/")
+
+const astToJsonSchema =
+  (options: Required<JsonSchemaRendererOptions>): AstTransformer =>
   (file, { relativePath }): string => {
+    const { spec } = options
     const mainType = file.jsDoc?.tags.main
 
     const jsonSchema = {
@@ -371,43 +466,82 @@ const astToJsonSchema = ({ spec }: TransformerOptions): AstTransformer =>
       $id: toForwardSlashAbsolutePath(relativePath),
       $ref: mainType ? `#/${defsKey(spec)}/${mainType}` : mainType,
       [defsKey(spec)]: Object.fromEntries(
-        Object.entries(file.elements)
-          .map(([key, node]) => [key, nodeToDefinition(spec, node)])
-      )
+        file.children.map((node) => [
+          node.name,
+          statementToDefinition(node, file, options),
+        ])
+      ),
     }
 
-    return `${JSON.stringify(jsonSchema, undefined, 2).replace(/\n/g, EOL)}${EOL}`
+    return `${JSON.stringify(jsonSchema, undefined, 2).replace(
+      /\n/g,
+      EOL
+    )}${EOL}`
   }
 
-const defsKey = (spec: JsonSchemaSpec): string => {
+const defsKey = (spec: JsonSchemaSpec) => {
   switch (spec) {
-    case "Draft_07": return "definitions"
-    case "Draft_2019_09":
-    case "Draft_2020_12": return "$defs"
-    default: throw TypeError("invalid spec")
+    case JsonSchemaSpec.Draft_07:
+      return "definitions"
+    case JsonSchemaSpec.Draft_2019_09:
+    case JsonSchemaSpec.Draft_2020_12:
+      return "$defs"
+    default:
+      return assertExhaustive(spec, "invalid spec")
   }
 }
 
 const schemaUri = (spec: JsonSchemaSpec): string => {
   switch (spec) {
-    case "Draft_07": return "https://json-schema.org/draft-07/schema"
-    case "Draft_2019_09": return "https://json-schema.org/draft/2019-09/schema"
-    case "Draft_2020_12": return "https://json-schema.org/draft/2020-12/schema"
-    default: throw TypeError("invalid spec")
+    case JsonSchemaSpec.Draft_07:
+      return "https://json-schema.org/draft-07/schema"
+    case JsonSchemaSpec.Draft_2019_09:
+      return "https://json-schema.org/draft/2019-09/schema"
+    case JsonSchemaSpec.Draft_2020_12:
+      return "https://json-schema.org/draft/2020-12/schema"
+    default:
+      return assertExhaustive(spec, "invalid spec")
   }
 }
 
-type RendererOptions = {
+const isUnresolvedPropertiesSupported = (spec: JsonSchemaSpec): boolean => {
+  switch (spec) {
+    case JsonSchemaSpec.Draft_07:
+      return false
+    case JsonSchemaSpec.Draft_2019_09:
+    case JsonSchemaSpec.Draft_2020_12:
+      return true
+    default:
+      return assertExhaustive(spec, "invalid spec")
+  }
+}
+
+export enum JsonSchemaSpec {
+  Draft_07 = "Draft_07",
+  Draft_2019_09 = "Draft_2019_09",
+  Draft_2020_12 = "Draft_2020_12",
+}
+
+export type JsonSchemaRendererOptions = {
   /**
    * The used JSON Schema specification.
-   * @default "Draft_2020_12"
+   * @default JsonSchemaSpec.Draft_2020_12
    */
   spec?: JsonSchemaSpec
+
+  /**
+   * Whether to allow unresolved additional keys in object definitions.
+   * @default false
+   */
+  allowAdditionalProperties?: boolean
 }
 
 export const jsonSchemaRenderer = ({
-  spec = "Draft_2020_12"
-}: RendererOptions = {}): Renderer => Object.freeze({
-  transformer: astToJsonSchema({ spec }),
-  fileExtension: ".schema.json",
-})
+  spec = JsonSchemaSpec.Draft_2020_12,
+  allowAdditionalProperties = false,
+}: JsonSchemaRendererOptions = {}): Renderer =>
+  Object.freeze({
+    transformer: astToJsonSchema({ spec, allowAdditionalProperties }),
+    fileExtension: ".schema.json",
+    resolveTypeParameters: true,
+  })

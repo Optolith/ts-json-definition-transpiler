@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "lib": ["ESNext"],
+    "module": "NodeNext",
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "outDir": "../libtest",
+    "sourceMap": true,
+    "strict": true,
+    "target": "ESNext",
+  },
+  "references": [
+    { "path": "../src" },
+  ]
+}

@@ -1,2 +1,6 @@
+*.ast.json
+*.ast.resolved.json
+*.tsbuildinfo
 node_modules
 lib
+libtest

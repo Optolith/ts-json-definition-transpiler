@@ -1,7 +1,19 @@
-import { Dirent, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs"
-import { basename, dirname, extname, format, join, relative, sep } from "node:path"
+import { Dirent, existsSync } from "node:fs"
+import { mkdir, readdir, rm, writeFile } from "node:fs/promises"
+import {
+  basename,
+  dirname,
+  extname,
+  format,
+  join,
+  relative,
+  sep,
+} from "node:path"
 import ts from "typescript"
-import { RootNode, fileToAst } from "./parser/ast.js"
+import { RootNode } from "./ast.js"
+import { fileToAst } from "./parser/ast.js"
+import { resolveTypeArgumentsForFile } from "./parser/resolvetypeargs.js"
+import { tsextPattern } from "./utils/path.js"
 
 export type MetaInformation = {
   /**
@@ -35,6 +47,12 @@ export type Renderer = {
    * The file extension the output files should use, e.g. `.md`.
    */
   fileExtension: string
+
+  /**
+   * If `true`, the root node will have its type parameters resolved and thus
+   * removed.
+   */
+  resolveTypeParameters?: boolean
 }
 
 /**
@@ -106,122 +124,170 @@ export type GeneratorOptions = {
  *
  * @param options - The generator options.
  */
-export const generate = (options: GeneratorOptions): void => {
+export const generate = async (options: GeneratorOptions): Promise<void> => {
   const {
     sourceDir,
     outputs,
     dumpAst = false,
     clean = false,
     fileNamePredicate,
-    verbose = false
+    verbose = false,
   } = options
 
-  const flattenTypeScriptFileNamesFromDir = (dirPath: string): string[] => {
+  const flattenTypeScriptFileNamesFromDir = async (
+    dirPath: string
+  ): Promise<string[]> => {
     const dirEntryToFilePath = (dirEntry: Dirent) =>
       join(dirPath, dirEntry.name).split(sep).join("/")
 
-    return readdirSync(dirPath, { withFileTypes: true })
-      .flatMap(dirEntry => {
-        if (dirEntry.isDirectory()) {
-          return flattenTypeScriptFileNamesFromDir(dirEntryToFilePath(dirEntry))
-        }
-        else if (dirEntry.isFile() && extname(dirEntry.name) === ".ts") {
-          return [dirEntryToFilePath(dirEntry)]
-        }
-        else {
-          return []
-        }
-      })
+    const entries = await readdir(dirPath, { withFileTypes: true })
+
+    return (
+      await Promise.all(
+        entries.map(async (dirEntry) => {
+          if (dirEntry.isDirectory()) {
+            return flattenTypeScriptFileNamesFromDir(
+              dirEntryToFilePath(dirEntry)
+            )
+          } else if (dirEntry.isFile() && extname(dirEntry.name) === ".ts") {
+            return [dirEntryToFilePath(dirEntry)]
+          } else {
+            return []
+          }
+        })
+      )
+    ).flat()
   }
 
-  const tsFiles = flattenTypeScriptFileNamesFromDir(sourceDir)
+  const tsFiles = await flattenTypeScriptFileNamesFromDir(sourceDir)
 
   const program = ts.createProgram(tsFiles, { strict: true })
 
   // KEEP ALWAYS, SIDE EFFECT: it fills the parent references of nodes
   const checker = program.getTypeChecker()
 
-  outputs.forEach(({ targetDir, clean: cleanSingle }) => {
+  for (const { targetDir, clean: cleanSingle } of outputs) {
     if ((cleanSingle ?? clean) && existsSync(targetDir)) {
-      rmSync(targetDir, { recursive: true })
+      await rm(targetDir, { recursive: true })
     }
 
-    mkdirSync(targetDir, { recursive: true })
-  })
+    await mkdir(targetDir, { recursive: true })
+  }
 
   const rootFiles = program
     .getSourceFiles()
-    .filter(file => tsFiles.includes(file.fileName))
+    .filter((file) => tsFiles.includes(file.fileName))
 
-  const filteredFiles =
-    fileNamePredicate
-    ? rootFiles.filter(file => fileNamePredicate(file.fileName))
+  const rootFilesAsts = Object.fromEntries(
+    rootFiles.map((file) => [file.fileName, fileToAst(file, checker, program)])
+  )
+
+  const filteredFiles = fileNamePredicate
+    ? rootFiles.filter((file) => fileNamePredicate(file.fileName))
     : rootFiles
 
-  console.log(`Generating files for ${filteredFiles.length} input file(s) and ${outputs.length} output format(s) ...`)
+  console.log(
+    `Generating files for ${filteredFiles.length} input file(s) and ${outputs.length} output format(s) ...`
+  )
 
-  filteredFiles.forEach(file => {
+  let outputFilesCount = 0
+
+  for (const file of filteredFiles) {
     const relativePath = relative(sourceDir, file.fileName)
-    const dir          = dirname(relativePath)
-    const name         = basename(relativePath).replace(/(?:\.d)?\.ts$/, "")
+    const dir = dirname(relativePath)
+    const name = basename(relativePath).replace(tsextPattern, "")
 
     try {
       if (verbose) {
         console.log(`Generating output for "${relativePath}" ...`)
       }
 
-      const ast = fileToAst(file, checker, program)
+      const ast = rootFilesAsts[file.fileName]!
+      const resolvedAst = resolveTypeArgumentsForFile(rootFilesAsts, ast)
 
-      if (Object.keys(ast.elements).length > 0) {
+      if (Object.keys(ast.children).length > 0) {
         if (dumpAst) {
-          writeFileSync(`${file.fileName}.ast.json`, JSON.stringify(ast, undefined, 2))
-        }
-
-        outputs.forEach(({ targetDir, renderer: { transformer, fileExtension } }) => {
-          const outputDir = join(targetDir, dir)
-
-          mkdirSync(outputDir, { recursive: true })
-
-          const outputAbsoluteFilePath = format({ dir: outputDir, name, ext: fileExtension })
-          const outputRelativeFilePath = relative(targetDir, outputAbsoluteFilePath)
-
-          const output = transformer(
-            ast,
-            {
-              absolutePath: outputAbsoluteFilePath,
-              relativePath: outputRelativeFilePath,
-            }
+          await writeFile(
+            `${file.fileName}.ast.json`,
+            JSON.stringify(ast, undefined, 2),
+            "utf-8"
           )
 
-          writeFileSync(outputAbsoluteFilePath, output)
-
-          if (verbose) {
-            console.log(`-> ${outputAbsoluteFilePath}`)
+          if (resolvedAst) {
+            await writeFile(
+              `${file.fileName}.ast.resolved.json`,
+              JSON.stringify(ast, undefined, 2),
+              "utf-8"
+            )
           }
-        })
-      }
-      else {
+        }
+
+        for (const { targetDir, renderer } of outputs) {
+          const {
+            transformer,
+            fileExtension,
+            resolveTypeParameters = false,
+          } = renderer
+          const outputDir = join(targetDir, dir)
+
+          const outputAbsoluteFilePath = format({
+            dir: outputDir,
+            name,
+            ext: fileExtension,
+          })
+
+          const outputRelativeFilePath = relative(
+            targetDir,
+            outputAbsoluteFilePath
+          )
+
+          const meta: MetaInformation = {
+            absolutePath: outputAbsoluteFilePath,
+            relativePath: outputRelativeFilePath,
+          }
+
+          const output = resolveTypeParameters
+            ? resolvedAst !== undefined
+              ? transformer(resolvedAst, meta)
+              : undefined
+            : transformer(ast, meta)
+
+          if (output === undefined) {
+            if (verbose) {
+              console.log(`-> empty output`)
+            }
+          } else {
+            await mkdir(outputDir, { recursive: true })
+            await writeFile(outputAbsoluteFilePath, output, "utf-8")
+            outputFilesCount++
+
+            if (verbose) {
+              console.log(`-> ${outputAbsoluteFilePath}`)
+            }
+          }
+        }
+      } else {
         if (verbose) {
           console.log(`file does not contain renderable content`)
         } else {
           console.log(`"${relativePath}" does not contain renderable content`)
         }
       }
-
     } catch (error) {
       if (error instanceof Error) {
         error.message = `${error.message} in TS file "${file.fileName}"`
         throw error
-      }
-      else {
+      } else {
         throw error
       }
     }
-  })
+  }
 
   if (verbose) {
-    console.log(`Generating ${filteredFiles.length * outputs.length} output file(s) finished successfully.`)
+    console.log(
+      `Generating ${outputFilesCount} output file(s) finished successfully.`
+    )
   } else {
-    console.log(`Generated ${filteredFiles.length * outputs.length} output file(s).`)
+    console.log(`Generated ${outputFilesCount} output file(s).`)
   }
 }

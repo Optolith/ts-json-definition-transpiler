@@ -1,21 +1,7 @@
 import ts from "typescript"
+import { Doc } from "../ast.js"
 import { flattenComment } from "./doccomment.js"
-import { DocTags, parseDocTags } from "./doctags.js"
-
-/**
- * The parsed JSDoc annotations for a node.
- */
-export type Doc = {
-  /**
-   * The initial description text.
-   */
-  comment?: string
-
-  /**
-   * A dictionary of supported tags (`@tag`) with parsed values, if present.
-   */
-  tags: DocTags
-}
+import { parseDocTags } from "./doctags.js"
 
 const isDocEmpty = (doc: Doc): boolean =>
   doc.comment === undefined && Object.keys(doc.tags).length === 0
@@ -54,8 +40,7 @@ export const parseModuleDoc = (file: ts.SourceFile): Doc | undefined => {
   if (firstNode) {
     if (ts.isImportDeclaration(firstNode)) {
       return parseNodeDoc(firstNode)
-    }
-    else {
+    } else {
       const jsDocs = firstNode.getChildren().filter(ts.isJSDoc)
 
       return jsDocs.length > 1 ? parseDoc(jsDocs[0]) : undefined
