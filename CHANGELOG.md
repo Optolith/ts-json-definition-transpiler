@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.10.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.9.4...v0.10.0) (2023-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* complete rework
+
+### Features
+
+* complete rework ([1960dd9](https://github.com/elyukai/optolith-tsjsonschemamd/commit/1960dd98d8ed958b2194c4c8ccc29ee188f82209))
+
 ### [0.9.4](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.9.3...v0.9.4) (2023-06-07)
 
 
