@@ -397,7 +397,15 @@ const resolveTypeArgumentsForNode = <T extends ContentNode>(
       }
     }
     case NodeKind.ExportAssignment:
-      return undefined
+      return {
+        ...node,
+        expression: resolveTypeArgumentsForNode(
+          node.expression,
+          typesInScope,
+          file,
+          files
+        ),
+      }
     default:
       return assertExhaustive(node)
   }
@@ -461,7 +469,7 @@ const rootTypesInScope = (
         acc[child.name] = { node: child, kind: ScopeTypeKind.Default }
         break
       case NodeKind.ExportAssignment:
-        acc[child.name] = { node: child, kind: ScopeTypeKind.Default }
+        // ignore name
         break
       case NodeKind.Group:
         acc[child.name] = { node: child, kind: ScopeTypeKind.Default }

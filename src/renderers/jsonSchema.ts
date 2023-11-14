@@ -4,10 +4,12 @@ import {
   ChildNode,
   Doc,
   DocTagTypes,
+  ExportAssignmentNode,
   NodeKind,
   RootNode,
   StatementNode,
   TokenKind,
+  isReferenceNode,
 } from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
 import { assertExhaustive } from "../utils/assertExhaustive.js"
@@ -421,7 +423,7 @@ const statementToDefinition = (
   file: RootNode,
   options: Required<JsonSchemaRendererOptions>,
   shallowOptions: { isReadOnly?: boolean } = {}
-): Definition => {
+): Definition | undefined => {
   const { isReadOnly } = shallowOptions
 
   switch (node.kind) {
@@ -429,7 +431,7 @@ const statementToDefinition = (
       return nodeToDefinition(node.definition, file, options)
     }
     case NodeKind.ExportAssignment: {
-      return nodeToDefinition(node.expression, file, options)
+      return undefined
     }
     case NodeKind.Enumeration: {
       return {
@@ -455,16 +457,46 @@ const statementToDefinition = (
 const toForwardSlashAbsolutePath = (path: string) =>
   "/" + path.split(sep).join("/")
 
+const getMainRef = (
+  file: RootNode,
+  spec: JsonSchemaSpec
+): string | undefined => {
+  if (file.jsDoc?.tags.main !== undefined) {
+    return `#/${defsKey(spec)}/${file.jsDoc.tags.main}`
+  }
+
+  const defaultExport = file.children.find(
+    (node) => node.name === "default" && node.kind === NodeKind.ExportAssignment
+  ) as ExportAssignmentNode | undefined
+
+  if (
+    defaultExport !== undefined &&
+    isReferenceNode(defaultExport.expression)
+  ) {
+    const externalFilePath = getRelativeExternalPath(
+      defaultExport.expression,
+      file,
+      ".schema.json"
+    )
+
+    const qualifiedName = getFullyQualifiedNameAsPath(
+      defaultExport.expression,
+      file
+    )
+
+    return `${externalFilePath}#/${defsKey(spec)}/${qualifiedName}`
+  }
+}
+
 const astToJsonSchema =
   (options: Required<JsonSchemaRendererOptions>): AstTransformer =>
   (file, { relativePath }): string => {
     const { spec } = options
-    const mainType = file.jsDoc?.tags.main
 
     const jsonSchema = {
       $schema: schemaUri(spec),
       $id: toForwardSlashAbsolutePath(relativePath),
-      $ref: mainType ? `#/${defsKey(spec)}/${mainType}` : mainType,
+      $ref: getMainRef(file, spec),
       [defsKey(spec)]: Object.fromEntries(
         file.children.map((node) => [
           node.name,
