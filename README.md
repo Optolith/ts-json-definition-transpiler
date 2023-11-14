@@ -102,7 +102,9 @@ Example:
  */
 ```
 
-### Supported JSDoc tags
+If no `@main` attribute is present, a default export is used as a fallback.
+
+### Supported JSDoc features
 
 JSDoc | TypeScript | Tag Comment Type | JSON Schema | Markdown
 :-- | :-- | :-- | :-- | :--
@@ -151,7 +153,7 @@ type Dictionary = {
 
 ### Generics
 
-Generics are **supported in a limited way**. You can use them, but since they are not supported in JSON Schema, the output is different: The declarations of types with generics are not output, instead, all locations where this generic type is used are resolved as if you had declared the type directly, without generics. This already happens at the custom AST level, so even if you use the AST for your own format, you'll not get information about generics.
+Generics are supported, but some export formats may not be able to support them, such as JSON Schema. You can use the `resolveTypeParameters` for a `Renderer` to receive an AST without type parameters. Types with type parameters are still present if all of their type parameters have default arguments, which replace all type parameter occurrences in the type definition. The AST type is the same, but you can ignore all type argument and type parameter properties, since they are all `undefined`.
 
 ## Examples
 
