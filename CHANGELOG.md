@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.10.1](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.0...v0.10.1) (2023-11-14)
+
+
+### Features
+
+* assert [@main](https://github.com/main) tag points to an existing type ([f48ea67](https://github.com/elyukai/optolith-tsjsonschemamd/commit/f48ea67769590078a80e71b825e3c3785aad81d9)), closes [#2](https://github.com/elyukai/optolith-tsjsonschemamd/issues/2)
+* support default export as [@main](https://github.com/main) tag fallback ([77ca2b1](https://github.com/elyukai/optolith-tsjsonschemamd/commit/77ca2b1f46959e74f119c52a6973ed14ca9482b4)), closes [#4](https://github.com/elyukai/optolith-tsjsonschemamd/issues/4)
+
 ## [0.10.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.9.4...v0.10.0) (2023-11-09)
 
 
