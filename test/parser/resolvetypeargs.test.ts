@@ -103,6 +103,19 @@ describe("resolveTypeArgumentsForFile", () => {
             token: TokenKind.Number,
           },
         },
+        {
+          kind: NodeKind.ExportAssignment,
+          fileName: a.fileName,
+          jsDoc: undefined,
+          name: "default",
+          expression: {
+            kind: NodeKind.Reference,
+            fileName: a.fileName,
+            jsDoc: undefined,
+            name: { segment: "Def" },
+            resolvedFileName: a.fileName,
+          },
+        },
       ],
     })
   })
