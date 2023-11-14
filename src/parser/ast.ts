@@ -689,6 +689,24 @@ const importNodeToAst = (
   }
 }
 
+const existsChild = (
+  qualifiedNameArray: string[],
+  node: StatementNode
+): boolean => {
+  if (node.kind === NodeKind.Group) {
+    return node.children.some((child) =>
+      existsChild(qualifiedNameArray.slice(1), child)
+    )
+  } else if (
+    node.kind === NodeKind.TypeDefinition &&
+    qualifiedNameArray.length === 1
+  ) {
+    return node.name === qualifiedNameArray[0]
+  } else {
+    return false
+  }
+}
+
 /**
  * Convert a file parsed by the TypeScript compiler to an instance of the custom
  * abstract syntax tree.
@@ -704,11 +722,24 @@ export const fileToAst = (
 ): RootNode => {
   const jsDoc = parseModuleDoc(file)
 
-  return {
+  const root: RootNode = {
     kind: NodeKind.Root,
     fileName: file.fileName,
     jsDoc,
     imports: importNodesToAst(file.statements, file, checker, program),
     children: statementNodesToAst(file.statements, file, checker, program),
   }
+
+  if (
+    root.jsDoc?.tags.main !== undefined &&
+    !root.children.some((child) =>
+      existsChild(root.jsDoc!.tags.main!.split("."), child)
+    )
+  ) {
+    throw TypeError(
+      `main tag "${root.jsDoc?.tags.main}" points to a type that does not exist`
+    )
+  }
+
+  return root
 }
