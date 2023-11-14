@@ -155,6 +155,12 @@ type Dictionary = {
 
 Generics are supported, but some export formats may not be able to support them, such as JSON Schema. You can use the `resolveTypeParameters` for a `Renderer` to receive an AST without type parameters. Types with type parameters are still present if all of their type parameters have default arguments, which replace all type parameter occurrences in the type definition. The AST type is the same, but you can ignore all type argument and type parameter properties, since they are all `undefined`.
 
+## Defining your own renderer
+
+If you want to write your own renderer, you must provide a value that conforms to the `Renderer` type. This type consists of three parts. An AST transformer function, a file extension and (optionally) whether to resolve type parameters (see section about generics).
+
+The transformer function receives the AST for a file and meta information about that file and should return a string that represents the generated code or text output, or `undefined` if no output should be generated for that file. If it’s a string, it is saved to the same *relative* location as in the root directory, but inside the output directory instead and with the file extension specified for the renderer. For example, if the root is defined as `src` and the output directory is `schema` with the `.schema.json` extension, a file at `src/core/Object.ts` will be output to `schema/core/Object.schema.json`.
+
 ## Examples
 
 You can check out the [Optolith flat-file database schema repository](https://github.com/elyukai/optolith-database-schema), which it has been mainly written for.
