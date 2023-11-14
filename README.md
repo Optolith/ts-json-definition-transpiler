@@ -65,6 +65,31 @@ otjsmd [-w | --watch] [-c <path-to-config> | --config <path-to-config>]
 
 Options must be defined in an ECMAScript module files, which defaults to a file called `otjsmd.config.js` in the directory where the command is run. You can specify a different path using the respective option. Supply the watch option to rebuild whenever a source file changes.
 
+The config file expects the configuration object as the default export of the file.
+
+```js
+import { jsonSchema, markdown } from "optolith-tsjsonschemamd/renderers"
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
+const root = dirname(fileURLToPath(import.meta.url))
+
+/** @type {import("optolith-tsjsonschemamd").GeneratorOptions} */
+export default {
+  sourceDir: join(root, "src"),
+  outputs: [
+    {
+      targetDir: join(root, "schema"),
+      renderer: jsonSchema({ spec: jsonSchemaSpec })
+    },
+    {
+      targetDir: join(root, "docs", "reference"),
+      renderer: markdown()
+    }
+  ]
+}
+```
+
 ### Main type
 
 A module comment may indicate the main type of the module, which can be used by directly importing the JSON Schema without the need to specify the definition inside. The type is referenced to by its name.
