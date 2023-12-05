@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.10.2](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.1...v0.10.2) (2023-12-05)
+
+
+### Features
+
+* separate enum type from values ([6d8dd43](https://github.com/elyukai/optolith-tsjsonschemamd/commit/6d8dd43df8aabd445d2053fea3ecba1faff0906c))
+
 ### [0.10.1](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.0...v0.10.1) (2023-11-14)
 
 
