@@ -548,11 +548,13 @@ const isUnresolvedPropertiesSupported = (spec: JsonSchemaSpec): boolean => {
   }
 }
 
-export enum JsonSchemaSpec {
-  Draft_07 = "Draft_07",
-  Draft_2019_09 = "Draft_2019_09",
-  Draft_2020_12 = "Draft_2020_12",
-}
+export const JsonSchemaSpec = Object.freeze({
+  Draft_07: "Draft_07",
+  Draft_2019_09: "Draft_2019_09",
+  Draft_2020_12: "Draft_2020_12",
+})
+
+export type JsonSchemaSpec = keyof typeof JsonSchemaSpec
 
 export type JsonSchemaRendererOptions = {
   /**
