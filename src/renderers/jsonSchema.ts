@@ -119,7 +119,8 @@ interface Union extends Annotated {
   oneOf: Definition[]
 }
 
-interface Intersection extends Annotated {
+interface Intersection {
+  type?: "object"
   allOf: Definition[]
   unevaluatedProperties?: boolean
 }
@@ -347,6 +348,7 @@ const nodeToDefinition = (
           )
           return {
             ...base,
+            type: "object",
             unevaluatedProperties: allowAdditionalProperties,
           }
         } else {
