@@ -121,7 +121,7 @@ interface Union extends Annotated {
 
 interface Intersection extends Annotated {
   allOf: Definition[]
-  unresolvedProperties?: boolean
+  unevaluatedProperties?: boolean
 }
 
 interface Constant extends Annotated {
@@ -347,7 +347,7 @@ const nodeToDefinition = (
           )
           return {
             ...base,
-            unresolvedProperties: allowAdditionalProperties,
+            unevaluatedProperties: allowAdditionalProperties,
           }
         } else {
           console.warn(
