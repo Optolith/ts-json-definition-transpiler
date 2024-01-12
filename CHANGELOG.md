@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.10.5](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.4...v0.10.5) (2024-01-12)
+
+
+### Bug Fixes
+
+* used original name for reference links when using aliased named imports ([1eb3796](https://github.com/elyukai/optolith-tsjsonschemamd/commit/1eb3796b3852ff0bca5c14d3ec2a8c3bf0c094f1))
+
 ### [0.10.4](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.3...v0.10.4) (2023-12-07)
 
 
