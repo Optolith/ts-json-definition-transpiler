@@ -1,5 +1,5 @@
 import { dirname, format, parse, relative } from "node:path/posix"
-import { NodeKind, ReferenceNode, RootNode } from "../ast.js"
+import { NamedImport, NodeKind, ReferenceNode, RootNode } from "../ast.js"
 import { qualifiedNameToArray } from "./qualifiedName.js"
 
 export const getRelativeExternalPath = (
@@ -45,3 +45,12 @@ export const getFullyQualifiedNameAsPath = (
     .slice(isNamespaceImport ? 1 : 0)
     .join("/")
 }
+
+export const getAliasedImportName = (node: ReferenceNode, file: RootNode) =>
+  node.name.right === undefined
+    ? file.imports.find(
+        (importNode): importNode is NamedImport =>
+          importNode.kind === NodeKind.NamedImport &&
+          importNode.alias === node.name.segment
+      )?.name
+    : undefined

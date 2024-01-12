@@ -27,6 +27,7 @@ import {
   qualifiedNameToArray,
 } from "../utils/qualifiedName.js"
 import {
+  getAliasedImportName,
   getFullyQualifiedNameAsPath,
   getRelativeExternalPath,
 } from "../utils/references.js"
@@ -228,10 +229,11 @@ const simpleBody = (node: SimpleNode, file: RootNode): string => {
         LabelledList.line("Type", node, () => {
           const externalFilePath = getRelativeExternalPath(node, file, ".md")
           const fullQualifiedName = getFullyQualifiedNameAsPath(node, file)
-
           const mainType = a(
             fullQualifiedName,
-            `${externalFilePath ?? ""}#${fullQualifiedName}`
+            `${externalFilePath ?? ""}#${
+              getAliasedImportName(node, file) ?? fullQualifiedName
+            }`
           )
 
           if (node.typeArguments) {
@@ -249,7 +251,9 @@ const simpleBody = (node: SimpleNode, file: RootNode): string => {
                   )
                   return a(
                     fullQualifiedName,
-                    `${externalFilePath ?? ""}#${fullQualifiedName}`
+                    `${externalFilePath ?? ""}#${
+                      getAliasedImportName(arg, file) ?? fullQualifiedName
+                    }`
                   )
                 } else if (isTokenNode(arg)) {
                   switch (arg.token) {

@@ -14,6 +14,7 @@ import {
 import { AstTransformer, Renderer } from "../main.js"
 import { assertExhaustive } from "../utils/assertExhaustive.js"
 import {
+  getAliasedImportName,
   getFullyQualifiedNameAsPath,
   getRelativeExternalPath,
 } from "../utils/references.js"
@@ -378,7 +379,9 @@ const nodeToDefinition = (
 
       return {
         ...toAnnotations(node.jsDoc),
-        $ref: `${externalFilePath}#/${defsKey(spec)}/${qualifiedName}`,
+        $ref: `${externalFilePath}#/${defsKey(spec)}/${
+          getAliasedImportName(node, file) ?? qualifiedName
+        }`,
         ...toDefault(node.jsDoc),
         ...(isReadOnly ? { readOnly: true } : undefined),
       }
