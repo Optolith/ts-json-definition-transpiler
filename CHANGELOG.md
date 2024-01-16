@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.10.6](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.5...v0.10.6) (2024-01-16)
+
+
+### Bug Fixes
+
+* dynamic import of options not possible on windows ([325c339](https://github.com/elyukai/optolith-tsjsonschemamd/commit/325c339267a1a623c6bcb4ac488c8426974db014))
+
 ### [0.10.5](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.4...v0.10.5) (2024-01-12)
 
 
