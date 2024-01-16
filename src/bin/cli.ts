@@ -2,6 +2,7 @@
 import { watch } from "node:fs/promises"
 import { resolve } from "node:path"
 import { argv, cwd } from "node:process"
+import { pathToFileURL } from "node:url"
 import { GeneratorOptions, generate } from "../main.js"
 
 const cliOptions = argv
@@ -26,7 +27,8 @@ const optionsPath = resolve(
     "otjsmd.config.js"
 )
 
-const options = (await import(optionsPath)).default as GeneratorOptions
+const options = (await import(pathToFileURL(optionsPath).toString()))
+  .default as GeneratorOptions
 
 if (cliOptions.has("-w") || cliOptions.has("--watch")) {
   try {
