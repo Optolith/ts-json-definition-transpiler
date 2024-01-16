@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.10.7](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.6...v0.10.7) (2024-01-16)
+
+
+### Bug Fixes
+
+* **json-renderer:** $id should have forward slashes on Windows ([0794a98](https://github.com/elyukai/optolith-tsjsonschemamd/commit/0794a9872683aaf0c017f7c1698daf146e8d8b08))
+
 ### [0.10.6](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.5...v0.10.6) (2024-01-16)
 
 
