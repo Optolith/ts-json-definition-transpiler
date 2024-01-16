@@ -1,5 +1,5 @@
 import { EOL } from "node:os"
-import { sep } from "node:path/posix"
+import { sep } from "node:path"
 import {
   ChildNode,
   Doc,
