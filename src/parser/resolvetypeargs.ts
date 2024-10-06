@@ -1,3 +1,5 @@
+import { isNotNullish } from "@optolith/helpers/nullable"
+import { assertExhaustive } from "@optolith/helpers/typeSafety"
 import {
   ContentNode,
   EnumerationNode,
@@ -10,8 +12,6 @@ import {
   TypeDefinitionNode,
   isExportAssignmentNode,
 } from "../ast.js"
-import { assertExhaustive } from "../utils/assertExhaustive.js"
-import { isNotNullish } from "../utils/nullable.js"
 
 enum ScopeTypeKind {
   Default,

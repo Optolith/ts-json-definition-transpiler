@@ -1,3 +1,5 @@
+import { isNotNullish } from "@optolith/helpers/nullable"
+import { assertExhaustive } from "@optolith/helpers/typeSafety"
 import { EOL } from "node:os"
 import {
   ArrayNode,
@@ -20,8 +22,6 @@ import {
   isTokenNode,
 } from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
-import { assertExhaustive } from "../utils/assertExhaustive.js"
-import { isNotNullish } from "../utils/nullable.js"
 import {
   getRightmostQualifiedNameSegment,
   qualifiedNameToArray,

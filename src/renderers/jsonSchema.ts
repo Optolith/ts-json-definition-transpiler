@@ -1,3 +1,4 @@
+import { assertExhaustive } from "@optolith/helpers/typeSafety"
 import { EOL } from "node:os"
 import { sep } from "node:path"
 import {
@@ -12,7 +13,6 @@ import {
   isReferenceNode,
 } from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
-import { assertExhaustive } from "../utils/assertExhaustive.js"
 import {
   getAliasedImportName,
   getFullyQualifiedNameAsPath,
