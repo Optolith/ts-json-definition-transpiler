@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.10.8](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.7...v0.10.8) (2024-11-15)
+
+
+### Features
+
+* add support for deprecated tag ([e639acb](https://github.com/elyukai/optolith-tsjsonschemamd/commit/e639acb61149404eda49b97bf084091af1d2c64a))
+* use @optolith/helpers package ([bfbb107](https://github.com/elyukai/optolith-tsjsonschemamd/commit/bfbb1075c168af8e80df46c2259263b277e5502d))
+
 ### [0.10.7](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.6...v0.10.7) (2024-01-16)
 
 
