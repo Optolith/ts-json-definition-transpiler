@@ -373,7 +373,9 @@ const unionBody = (
   const id = (childNode: ChildNode, index: number) => {
     switch (childNode.kind) {
       case NodeKind.Record: {
-        const tagProperty = childNode.children["tag"]
+        const tagProperty = childNode.members.find(
+          (member) => member.identifier === "tag"
+        )
 
         return tagProperty && tagProperty.value.kind === NodeKind.Literal
           ? tagProperty.value.value.toString()
@@ -459,7 +461,7 @@ const strictObjectBody = (
   propertyPath: string,
   file: RootNode
 ): SectionNode => {
-  const nodeElements = Object.entries(node.children)
+  const nodeElements = node.members
 
   if (nodeElements.length === 0) {
     return {
@@ -469,33 +471,33 @@ const strictObjectBody = (
       append: [],
     }
   } else {
-    const propertiesOverview = Object.entries(node.children)
-      .map(([key, config]) => {
-        const propertyPropertyPath = `${propertyPath}/${key}`
-        const title = `\`${key}${config.isRequired ? "" : "?"}\``
+    const propertiesOverview = nodeElements
+      .map((member) => {
+        const propertyPropertyPath = `${propertyPath}/${member.identifier}`
+        const title = `\`${member.identifier}${member.isRequired ? "" : "?"}\``
 
         return [
           title,
-          config.jsDoc?.comment?.split("\n\n")[0]?.replaceAll("\n", " ") ?? "",
+          member.jsDoc?.comment?.split("\n\n")[0]?.replaceAll("\n", " ") ?? "",
           a("See details", anchorUrl(propertyPropertyPath)),
         ].join(" | ")
       })
       .join(EOL)
 
     const properties = nodeElements.reduce<SectionNode>(
-      ({ inline, append }, [key, propertyNode]) => {
-        const propertyPropertyPath = `${propertyPath}/${key}`
+      ({ inline, append }, member) => {
+        const propertyPropertyPath = `${propertyPath}/${member.identifier}`
         const title = h(
           4,
-          `\`${key}${propertyNode.isRequired ? "" : "?"}\``,
+          `\`${member.identifier}${member.isRequired ? "" : "?"}\``,
           propertyPropertyPath
         )
 
-        if (propertyNode.value.kind === NodeKind.Record) {
+        if (member.value.kind === NodeKind.Record) {
           return {
             inline: [
               ...inline,
-              headerWithDescription(title, propertyNode.jsDoc?.comment),
+              headerWithDescription(title, member.jsDoc?.comment),
               LabelledList.create([
                 LabelledList.line("Type", propertyPropertyPath, (anchor) =>
                   a("Object", anchorUrl(anchor))
@@ -509,21 +511,17 @@ const strictObjectBody = (
             ],
             append: [
               ...append,
-              definitionToMarkdown(
-                propertyPropertyPath,
-                propertyNode.value,
-                file
-              ),
+              definitionToMarkdown(propertyPropertyPath, member.value, file),
             ],
           }
         } else {
           const { inline: inlineCurrent, append: appendCurrent } =
             definitionToMarkdown(
               propertyPropertyPath,
-              propertyNode.value,
+              member.value,
               file,
               true,
-              headerWithDescription(title, propertyNode.jsDoc?.comment)
+              headerWithDescription(title, member.jsDoc?.comment)
             )
 
           return {

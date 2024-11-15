@@ -75,8 +75,11 @@ describe("resolveTypeArgumentsForFile", () => {
             kind: NodeKind.Record,
             fileName: a.fileName,
             jsDoc: undefined,
-            children: {
-              id: {
+            members: [
+              {
+                kind: NodeKind.Member,
+                fileName: a.fileName,
+                identifier: "id",
                 isReadOnly: false,
                 isRequired: true,
                 jsDoc: undefined,
@@ -87,7 +90,7 @@ describe("resolveTypeArgumentsForFile", () => {
                   token: TokenKind.Number,
                 },
               },
-            },
+            ],
           },
         },
         {
@@ -154,8 +157,11 @@ describe("resolveTypeArgumentsForFile", () => {
             kind: NodeKind.Record,
             fileName: a.fileName,
             jsDoc: undefined,
-            children: {
-              id: {
+            members: [
+              {
+                kind: NodeKind.Member,
+                fileName: a.fileName,
+                identifier: "id",
                 isReadOnly: false,
                 isRequired: true,
                 jsDoc: undefined,
@@ -168,7 +174,7 @@ describe("resolveTypeArgumentsForFile", () => {
                   resolvedFileName: a.fileName,
                 },
               },
-            },
+            ],
           },
         },
         {
@@ -234,8 +240,11 @@ describe("resolveTypeArgumentsForFile", () => {
             kind: NodeKind.Record,
             fileName: b.fileName,
             jsDoc: undefined,
-            children: {
-              object: {
+            members: [
+              {
+                kind: NodeKind.Member,
+                fileName: b.fileName,
+                identifier: "object",
                 isReadOnly: false,
                 isRequired: true,
                 jsDoc: undefined,
@@ -248,7 +257,10 @@ describe("resolveTypeArgumentsForFile", () => {
                   typeArguments: undefined,
                 },
               },
-              value: {
+              {
+                kind: NodeKind.Member,
+                fileName: b.fileName,
+                identifier: "value",
                 isReadOnly: false,
                 isRequired: true,
                 jsDoc: undefined,
@@ -259,7 +271,7 @@ describe("resolveTypeArgumentsForFile", () => {
                   token: TokenKind.Number,
                 },
               },
-            },
+            ],
           },
         },
       ],

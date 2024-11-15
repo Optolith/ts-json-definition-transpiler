@@ -188,9 +188,9 @@ const resolveTypeArgumentsForNode = <T extends ContentNode>(
       }
     }
     case NodeKind.Record: {
-      const children = Object.entries(node.children).map(([key, value]) => {
+      const members = node.members.map((member) => {
         const child = resolveTypeArgumentsForNode(
-          value.value,
+          member.value,
           typesInScope,
           file,
           files
@@ -198,13 +198,13 @@ const resolveTypeArgumentsForNode = <T extends ContentNode>(
         if (child === undefined) {
           return undefined
         }
-        return [key, { ...value, value: child }]
+        return { ...member, value: child }
       })
 
-      if (children.every(isNotNullish)) {
+      if (members.every(isNotNullish)) {
         return {
           ...node,
-          children: Object.fromEntries(children),
+          members: members,
         }
       }
 

@@ -68,8 +68,11 @@ describe("fileToAst", () => {
             kind: NodeKind.Record,
             fileName: a.fileName,
             jsDoc: undefined,
-            children: {
-              id: {
+            members: [
+              {
+                kind: NodeKind.Member,
+                fileName: a.fileName,
+                identifier: "id",
                 isReadOnly: false,
                 isRequired: true,
                 jsDoc: undefined,
@@ -82,7 +85,7 @@ describe("fileToAst", () => {
                   resolvedFileName: undefined,
                 },
               },
-            },
+            ],
           },
         },
         {

@@ -11,6 +11,7 @@ const docTagTypes: DocTagTypes = {
   title: "string",
   default: "unknown",
   deprecated: "string",
+  ignore: "string",
 
   // String
   minLength: "integer",

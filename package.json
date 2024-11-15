@@ -14,7 +14,9 @@
     ".": "./lib/main.js",
     "./ast": "./lib/ast.js",
     "./renderers": "./lib/renderers.js",
-    "./renderers/*": "./lib/renderers/*.js"
+    "./renderers/*": "./lib/renderers/*.js",
+    "./utils/ignoreNode": "./lib/utils/ignoreNode.js",
+    "./utils/qualifiedName": "./lib/utils/qualifiedName.js"
   },
   "bin": {
     "otjsmd": "./lib/bin/cli.js"

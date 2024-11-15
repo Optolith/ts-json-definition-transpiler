@@ -13,11 +13,14 @@ import {
   isReferenceNode,
 } from "../ast.js"
 import { AstTransformer, Renderer } from "../main.js"
+import { ignoreNode } from "../utils/ignoreNode.js"
 import {
   getAliasedImportName,
   getFullyQualifiedNameAsPath,
   getRelativeExternalPath,
 } from "../utils/references.js"
+
+const IGNORE_ENV = "json-schema"
 
 /**
  * Descriptive annotations of the JSON type definition
@@ -235,16 +238,18 @@ const nodeToDefinition = (
         type: "object",
         ...toDefault(node.jsDoc),
         properties: Object.fromEntries(
-          Object.entries(node.children).map(([key, config]) => [
-            key,
-            nodeToDefinition(config.value, file, options, {
-              isReadOnly: config.isReadOnly,
-            }),
-          ])
+          node.members
+            .filter((member) => !ignoreNode(member, IGNORE_ENV))
+            .map((member) => [
+              member.identifier,
+              nodeToDefinition(member.value, file, options, {
+                isReadOnly: member.isReadOnly,
+              }),
+            ])
         ),
-        required: Object.entries(node.children)
-          .filter(([_, config]) => config.isRequired)
-          .map(([key]) => key),
+        required: node.members
+          .filter((member) => member.isRequired)
+          .map((member) => member.identifier),
         ...toConstraints(node.jsDoc, "object"),
         ...(isReadOnly ? { readOnly: true } : undefined),
         additionalProperties: allowAdditionalProperties,
@@ -433,26 +438,32 @@ const statementToDefinition = (
 
   switch (node.kind) {
     case NodeKind.TypeDefinition: {
-      return nodeToDefinition(node.definition, file, options)
+      return ignoreNode(node, IGNORE_ENV)
+        ? undefined
+        : nodeToDefinition(node.definition, file, options)
     }
     case NodeKind.ExportAssignment: {
       return undefined
     }
     case NodeKind.Enumeration: {
-      return {
-        ...toAnnotations(node.jsDoc),
-        enum: node.children.map(({ value }) => value),
-        ...toDefault(node.jsDoc),
-        ...(isReadOnly ? { readOnly: true } : undefined),
-      }
+      return ignoreNode(node, IGNORE_ENV)
+        ? undefined
+        : {
+            ...toAnnotations(node.jsDoc),
+            enum: node.children.map(({ value }) => value),
+            ...toDefault(node.jsDoc),
+            ...(isReadOnly ? { readOnly: true } : undefined),
+          }
     }
     case NodeKind.Group: {
-      return Object.fromEntries(
-        Object.entries(node.children).map(([key, node]) => [
-          key,
-          statementToDefinition(node, file, options),
-        ])
-      ) as Group
+      return ignoreNode(node, IGNORE_ENV)
+        ? undefined
+        : (Object.fromEntries(
+            Object.entries(node.children).map(([key, node]) => [
+              key,
+              statementToDefinition(node, file, options),
+            ])
+          ) as Group)
     }
     default:
       return assertExhaustive(node, "invalid statement")
@@ -503,10 +514,12 @@ const astToJsonSchema =
       $id: toForwardSlashAbsolutePath(relativePath),
       $ref: getMainRef(file, spec),
       [defsKey(spec)]: Object.fromEntries(
-        file.children.map((node) => [
-          node.name,
-          statementToDefinition(node, file, options),
-        ])
+        file.children
+          .map((node) => [
+            node.name,
+            statementToDefinition(node, file, options),
+          ])
+          .filter(([_, def]) => def !== undefined)
       ),
     }
 

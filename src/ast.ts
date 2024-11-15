@@ -5,6 +5,7 @@ export enum NodeKind {
   Root,
   Group,
   Record,
+  Member,
   Dictionary,
   Token,
   Reference,
@@ -47,6 +48,7 @@ export type DocTagTypes = {
   title: "string"
   default: "unknown"
   deprecated: "string"
+  ignore: "string"
 
   // String
   minLength: "integer"
@@ -100,34 +102,34 @@ export type RecordNode = {
   kind: NodeKind.Record
   fileName: string
   jsDoc?: Doc
-
-  /**
-   * All properties, keyed by the property name.
-   */
-  children: {
-    [identifier: string]: {
-      jsDoc?: Doc
-
-      /**
-       * Is the property required?
-       */
-      isRequired: boolean
-
-      /**
-       * The property value.
-       */
-      value: ChildNode
-
-      /**
-       * Is the property read-only?
-       */
-      isReadOnly: boolean
-    }
-  }
+  members: MemberNode[]
 }
 
 export const isRecordNode = (node: Node): node is RecordNode =>
   node.kind === NodeKind.Record
+
+export type MemberNode = {
+  kind: NodeKind.Member
+  fileName: string
+  identifier: string
+
+  jsDoc?: Doc
+
+  /**
+   * Is the property required?
+   */
+  isRequired: boolean
+
+  /**
+   * The property value.
+   */
+  value: ChildNode
+
+  /**
+   * Is the property read-only?
+   */
+  isReadOnly: boolean
+}
 
 /**
  * An object with a variable set of keys with the same value type. The keys may

@@ -21,12 +21,10 @@ const mapChildRecursive = (
     case NodeKind.Record:
       return visitor({
         ...node,
-        children: Object.fromEntries(
-          Object.entries(node.children).map(([key, property]) => [
-            key,
-            { ...property, value: mapChildRecursive(property.value, visitor) },
-          ])
-        ),
+        members: node.members.map((member) => ({
+          ...member,
+          value: mapChildRecursive(member.value, visitor),
+        })),
       })
     case NodeKind.Dictionary:
       return visitor({
@@ -380,8 +378,8 @@ const nodeToAst = (
         kind: NodeKind.Record,
         fileName: file.fileName,
         jsDoc,
-        children: Object.fromEntries(
-          (node.members as readonly ts.PropertySignature[]).map((member) => {
+        members: (node.members as readonly ts.PropertySignature[]).map(
+          (member) => {
             const value =
               member.type !== undefined
                 ? nodeToAst(member.type, file, checker, program)
@@ -397,20 +395,19 @@ const nodeToAst = (
               )
             }
 
-            return [
-              propertyNameToString(member.name),
-              {
-                jsDoc: parseNodeDoc(member),
-                isRequired: member.questionToken === undefined,
-                value,
-                isReadOnly:
-                  member.modifiers?.some(
-                    (modifier) =>
-                      modifier.kind === ts.SyntaxKind.ReadonlyKeyword
-                  ) ?? false,
-              },
-            ]
-          })
+            return {
+              kind: NodeKind.Member,
+              fileName: file.fileName,
+              identifier: propertyNameToString(member.name),
+              jsDoc: parseNodeDoc(member),
+              isRequired: member.questionToken === undefined,
+              value,
+              isReadOnly:
+                member.modifiers?.some(
+                  (modifier) => modifier.kind === ts.SyntaxKind.ReadonlyKeyword
+                ) ?? false,
+            }
+          }
         ),
       }
     } else {
