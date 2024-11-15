@@ -46,6 +46,7 @@ export type DocTagTypes = {
   main: "string"
   title: "string"
   default: "unknown"
+  deprecated: "string"
 
   // String
   minLength: "integer"
