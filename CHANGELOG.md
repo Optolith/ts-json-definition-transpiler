@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.11.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.8...v0.11.0) (2024-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* use member nodes for record node, support @ignore jsdoc annotation to exclude nodes from rendering in JSON Schema or custom renderers
+
+### Features
+
+* use member nodes for record node, support [@ignore](https://github.com/ignore) jsdoc annotation to exclude nodes from rendering in JSON Schema or custom renderers ([bcdbe6a](https://github.com/elyukai/optolith-tsjsonschemamd/commit/bcdbe6a25e8e2c7bb3f5060e90a81e09cb42ade3))
+
 ### [0.10.8](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.7...v0.10.8) (2024-11-15)
 
 
