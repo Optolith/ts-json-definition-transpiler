@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsc -b",
     "watch": "tsc -b -w",
-    "release": "standard-version",
+    "release": "commit-and-tag-version",
     "test": "glob -c \"node --import tsx --test\" \"./test/**/*.test.ts\""
   },
   "author": "Lukas Obermann",
@@ -35,8 +35,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.9.0",
+    "commit-and-tag-version": "^12.5.0",
     "glob": "^10.3.10",
-    "standard-version": "^9.5.0",
     "tsx": "^4.0.0"
   },
   "repository": "github:elyukai/optolith-tsjsonschemamd",
