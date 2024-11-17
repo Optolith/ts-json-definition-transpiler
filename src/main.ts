@@ -31,7 +31,10 @@ export type MetaInformation = {
  * A function that takes the custom AST and some meta information about the
  * current source file and returns the content of the output file to be written.
  */
-export type AstTransformer = (ast: RootNode, meta: MetaInformation) => string
+export type AstTransformer = (
+  ast: RootNode,
+  meta: MetaInformation
+) => string | undefined
 
 /**
  * A renderer is specified by an AST transformer and the file extension, since
