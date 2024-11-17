@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.11.1](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.11.0...v0.11.1) (2024-11-17)
+
+
+### Bug Fixes
+
+* AstTransformer may return undefined to not generate a file ([b66d8ff](https://github.com/elyukai/optolith-tsjsonschemamd/commit/b66d8ff13031385a7cd1a5c769abac4cc4fec04b))
+
 ## [0.11.0](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.10.8...v0.11.0) (2024-11-15)
 
 
