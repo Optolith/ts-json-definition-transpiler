@@ -9,6 +9,11 @@
     "abstract-syntax-tree",
     "code-generation"
   ],
+  "files": [
+    "lib",
+    "AUTHORS",
+    "CHANGELOG.md"
+  ],
   "main": "./lib/main.js",
   "exports": {
     ".": "./lib/main.js",
