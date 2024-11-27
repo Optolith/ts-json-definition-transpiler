@@ -1,5 +1,5 @@
-import { Dirent, existsSync } from "node:fs"
-import { mkdir, readdir, rm, writeFile } from "node:fs/promises"
+import { Dirent } from "node:fs"
+import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises"
 import {
   basename,
   dirname,
@@ -169,12 +169,18 @@ export const generate = async (options: GeneratorOptions): Promise<void> => {
   // KEEP ALWAYS, SIDE EFFECT: it fills the parent references of nodes
   const checker = program.getTypeChecker()
 
-  for (const { targetDir, clean: cleanSingle } of outputs) {
-    if ((cleanSingle ?? clean) && existsSync(targetDir)) {
-      await rm(targetDir, { recursive: true })
-    }
-
+  for (const { targetDir } of outputs) {
     await mkdir(targetDir, { recursive: true })
+  }
+
+  const filesToCleanUp = await Promise.all(
+    outputs.map(({ targetDir }) => readdir(targetDir, { recursive: true }))
+  )
+
+  const removeFileFromCleanUp = (outputIndex: number, path: string) => {
+    filesToCleanUp[outputIndex] = filesToCleanUp[outputIndex]!.filter(
+      (existingPath) => existingPath !== path
+    )
   }
 
   const rootFiles = program
@@ -225,50 +231,54 @@ export const generate = async (options: GeneratorOptions): Promise<void> => {
           }
         }
 
-        for (const { targetDir, renderer } of outputs) {
-          const {
-            transformer,
-            fileExtension,
-            resolveTypeParameters = false,
-          } = renderer
-          const outputDir = join(targetDir, dir)
+        await Promise.all(
+          outputs.map(async ({ targetDir, renderer }, outputIndex) => {
+            const {
+              transformer,
+              fileExtension,
+              resolveTypeParameters = false,
+            } = renderer
+            const outputDir = join(targetDir, dir)
 
-          const outputAbsoluteFilePath = format({
-            dir: outputDir,
-            name,
-            ext: fileExtension,
+            const outputAbsoluteFilePath = format({
+              dir: outputDir,
+              name,
+              ext: fileExtension,
+            })
+
+            const outputRelativeFilePath = relative(
+              targetDir,
+              outputAbsoluteFilePath
+            )
+
+            const meta: MetaInformation = {
+              absolutePath: outputAbsoluteFilePath,
+              relativePath: outputRelativeFilePath,
+            }
+
+            const output = resolveTypeParameters
+              ? resolvedAst !== undefined
+                ? transformer(resolvedAst, meta)
+                : undefined
+              : transformer(ast, meta)
+
+            if (output === undefined) {
+              if (verbose) {
+                console.log(`-> empty output`)
+              }
+            } else {
+              await mkdir(outputDir, { recursive: true })
+              await writeFile(outputAbsoluteFilePath, output, "utf-8")
+              outputFilesCount++
+
+              removeFileFromCleanUp(outputIndex, outputRelativeFilePath)
+
+              if (verbose) {
+                console.log(`-> ${outputAbsoluteFilePath}`)
+              }
+            }
           })
-
-          const outputRelativeFilePath = relative(
-            targetDir,
-            outputAbsoluteFilePath
-          )
-
-          const meta: MetaInformation = {
-            absolutePath: outputAbsoluteFilePath,
-            relativePath: outputRelativeFilePath,
-          }
-
-          const output = resolveTypeParameters
-            ? resolvedAst !== undefined
-              ? transformer(resolvedAst, meta)
-              : undefined
-            : transformer(ast, meta)
-
-          if (output === undefined) {
-            if (verbose) {
-              console.log(`-> empty output`)
-            }
-          } else {
-            await mkdir(outputDir, { recursive: true })
-            await writeFile(outputAbsoluteFilePath, output, "utf-8")
-            outputFilesCount++
-
-            if (verbose) {
-              console.log(`-> ${outputAbsoluteFilePath}`)
-            }
-          }
-        }
+        )
       } else {
         if (verbose) {
           console.log(`file does not contain renderable content`)
@@ -285,6 +295,25 @@ export const generate = async (options: GeneratorOptions): Promise<void> => {
       }
     }
   }
+
+  await Promise.all(
+    outputs.map(async ({ targetDir, clean: cleanSingle }, outputIndex) => {
+      if (cleanSingle ?? clean) {
+        await Promise.all(
+          filesToCleanUp[outputIndex]!.map(async (filePath) => {
+            const absolutePath = join(targetDir, filePath)
+            const stats = await stat(absolutePath)
+            if (
+              !stats.isDirectory() ||
+              (await readdir(absolutePath)).length === 0
+            ) {
+              await rm(join(targetDir, filePath), { recursive: true })
+            }
+          })
+        )
+      }
+    })
+  )
 
   if (verbose) {
     console.log(
