@@ -167,7 +167,7 @@ describe("statementNodeToDeclNode", () => {
           variableDecl({}, SwiftAst.Keyword.let, [
             patternBinding(
               identifierPattern("constantValue"),
-              identifierType("Int")
+              identifierType("Double")
             ),
           ]),
           variableDecl({}, SwiftAst.Keyword.let, [

@@ -79,7 +79,7 @@ describe("generateStructInitializers", () => {
           variableDecl({}, Keyword.let, [
             patternBinding(
               identifierPattern("value"),
-              optionalType(identifierType("Int"))
+              optionalType(identifierType("Double"))
             ),
           ]),
           initializerDecl(
@@ -88,7 +88,7 @@ describe("generateStructInitializers", () => {
               functionParameter(identifierType("String"), "id"),
 
               functionParameter(
-                optionalType(identifierType("Int")),
+                optionalType(identifierType("Double")),
                 "value",
                 undefined,
                 {
