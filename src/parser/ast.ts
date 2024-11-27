@@ -620,9 +620,9 @@ const importNodesToAst = (
 
 const importNodeToAst = (
   node: ts.Statement,
-  file: ts.SourceFile,
+  _file: ts.SourceFile,
   checker: ts.TypeChecker,
-  program: ts.Program
+  _program: ts.Program
 ): ImportNode[] => {
   if (
     ts.isImportDeclaration(node) &&
