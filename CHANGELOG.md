@@ -1,6 +1,21 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
+
+## [0.11.2](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.11.1...v0.11.2) (2024-11-27)
+
+
+### Features
+
+* only delete files after new files have been generated with clean option ([cf0433e](https://github.com/elyukai/optolith-tsjsonschemamd/commit/cf0433e8e17b6d3ea8a64fbe1dae32ebd5aec147))
+* **swift:** basic swift renderer support ([b53dd32](https://github.com/elyukai/optolith-tsjsonschemamd/commit/b53dd3241501b875a0e0c79b923be0c19751ef4f))
+* **swift:** fix issues and provide missing settings for Optolith usage ([df1f222](https://github.com/elyukai/optolith-tsjsonschemamd/commit/df1f2223ec3912cfed30f4eeaab8f7ea93a5268f))
+* **swift:** refactor and decodable synthesization ([735d405](https://github.com/elyukai/optolith-tsjsonschemamd/commit/735d405bb0d290b25dceaef99c1a412e6ebbcc3b))
+
+
+### Bug Fixes
+
+* annotate unused parameters to suppress warnings ([9b21266](https://github.com/elyukai/optolith-tsjsonschemamd/commit/9b212662a75975aab52d8ecdf5c70d6eb5b47417))
 
 ### [0.11.1](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.11.0...v0.11.1) (2024-11-17)
 
