@@ -128,7 +128,9 @@ const childNodeToTypeNode = (
         case SourceAst.TokenKind.String:
           return identifierType("String")
         case SourceAst.TokenKind.Number:
-          return identifierType("Int")
+          return node.jsDoc?.tags.integer === true
+            ? identifierType("Int")
+            : identifierType("Double")
         case SourceAst.TokenKind.Boolean:
           return identifierType("Bool")
       }
@@ -446,7 +448,8 @@ const safeIdentifier = (name: string): string =>
 
 const typeParameterNodesToGenericParameterClause = (
   nodes: SourceAst.TypeParameterNode[] | undefined,
-  options: SwiftOptions
+  options: SwiftOptions,
+  mainIdentifier: string | undefined
 ): GenericParameterClauseNode | undefined =>
   nodes === undefined
     ? undefined
@@ -458,20 +461,58 @@ const typeParameterNodesToGenericParameterClause = (
               node.constraint
                 ? childNodeToTypeNode(node.constraint, options)
                 : undefined,
-              options.synthesizeDecodable === true
-                ? identifierType("Decodable")
-                : undefined
+              ...(addConformances(node, node.name, mainIdentifier, options) ??
+                [])
             )
           )
         )
       )
+
+const addConformances = (
+  node:
+    | SourceAst.RecordNode
+    | SourceAst.UnionNode
+    | SourceAst.EnumerationNode
+    | SourceAst.TypeParameterNode,
+  identifier: string,
+  mainIdentifier: string | undefined,
+  options: SwiftOptions
+): TypeNode[] | undefined => {
+  const applyingAddedConformances =
+    options.addConformances?.filter(
+      (conformance) =>
+        conformance.forMainTypes === undefined ||
+        (identifier === mainIdentifier) === conformance.forMainTypes
+    ) ?? []
+
+  const addedConformances = applyingAddedConformances.map((conformance) =>
+    identifierType(
+      typeof conformance.identifier === "string"
+        ? conformance.identifier
+        : conformance.identifier(node)
+    )
+  )
+
+  const addedDecodable =
+    options.decodableSynthesization !== undefined &&
+    applyingAddedConformances.every(
+      (conformance) => conformance.includesDecodable !== true
+    )
+      ? [identifierType("Decodable")]
+      : []
+
+  const allConformances = [...addedConformances, ...addedDecodable]
+
+  return allConformances.length > 0 ? allConformances : undefined
+}
 
 const childNodeToDeclNode = (
   name: string,
   jsDoc: SourceAst.Doc | undefined,
   typeParameters: SourceAst.TypeParameterNode[] | undefined,
   node: SourceAst.ChildNode,
-  options: SwiftOptions
+  options: SwiftOptions,
+  mainIdentifier: string | undefined
 ): DeclNode => {
   switch (node.kind) {
     case SourceAst.NodeKind.Record: {
@@ -498,12 +539,15 @@ const childNodeToDeclNode = (
           modifiers: accessControlModifier(options),
           genericParameterClause: typeParameterNodesToGenericParameterClause(
             typeParameters,
+            options,
+            mainIdentifier
+          ),
+          inheritanceClause: addConformances(
+            node,
+            name,
+            mainIdentifier,
             options
           ),
-          inheritanceClause:
-            options.synthesizeDecodable === true
-              ? [identifierType("Decodable")]
-              : undefined,
         },
         filterNonNullable([
           ...variables.map((variable) =>
@@ -553,7 +597,7 @@ const childNodeToDeclNode = (
                 )
               )
             : undefined,
-          ...(options.synthesizeDecodable === true &&
+          ...(options.decodableSynthesization !== undefined &&
           variables.some(
             (variable) => variable.originalIdentifier !== variable.identifier
           )
@@ -568,20 +612,13 @@ const childNodeToDeclNode = (
                     ],
                   },
                   variables.map((variable) =>
-                    enumCaseDecl(
-                      {
-                        attributes: variable.attributes,
-                      },
-                      [
-                        enumCaseElement(
-                          safeIdentifier(
-                            forceCamel(variable.identifier, options)
-                          ),
-                          undefined,
-                          stringLiteralExpr(variable.originalIdentifier)
-                        ),
-                      ]
-                    )
+                    enumCaseDecl({}, [
+                      enumCaseElement(
+                        forceCamel(variable.identifier, options),
+                        undefined,
+                        stringLiteralExpr(variable.originalIdentifier)
+                      ),
+                    ])
                   )
                 ),
                 // initializerDecl(
@@ -630,21 +667,22 @@ const childNodeToDeclNode = (
           modifiers: accessControlModifier(options),
           genericParameterClause: typeParameterNodesToGenericParameterClause(
             typeParameters,
-            options
+            options,
+            mainIdentifier
           ),
         },
         childNodeToTypeNode(node, options)
       )
     case SourceAst.NodeKind.Union:
       if (
-        options?.enumerationSynthesizationDiscriminatorKey !== undefined &&
+        options.decodableSynthesization !== undefined &&
         node.children.every((caseNode) => {
           const tagMember =
             caseNode.kind === SourceAst.NodeKind.Record
               ? caseNode.members.find(
                   (member) =>
                     member.identifier ===
-                    options.enumerationSynthesizationDiscriminatorKey
+                    options.decodableSynthesization!.discriminatorKey
                 )
               : undefined
           return (
@@ -659,13 +697,13 @@ const childNodeToDeclNode = (
               member.members.find(
                 (member) =>
                   member.identifier ===
-                  options.enumerationSynthesizationDiscriminatorKey
+                  options.decodableSynthesization!.discriminatorKey
               )!.value as SourceAst.LiteralNode
             ).value as string
             const valueMember = member.members.find(
               (recordMember) =>
                 recordMember.identifier !==
-                options.enumerationSynthesizationDiscriminatorKey
+                options.decodableSynthesization!.discriminatorKey
             )!
             return {
               tag,
@@ -686,12 +724,15 @@ const childNodeToDeclNode = (
             modifiers: accessControlModifier(options),
             genericParameterClause: typeParameterNodesToGenericParameterClause(
               typeParameters,
+              options,
+              mainIdentifier
+            ),
+            inheritanceClause: addConformances(
+              node,
+              name,
+              mainIdentifier,
               options
             ),
-            inheritanceClause:
-              options.synthesizeDecodable === true
-                ? [identifierType("Decodable")]
-                : undefined,
           },
           [
             ...enumCases.map((enumCase) =>
@@ -715,7 +756,8 @@ const childNodeToDeclNode = (
                 ]
               )
             ),
-            ...(options.synthesizeDecodable === true && node.children.length > 0
+            ...(options.decodableSynthesization !== undefined &&
+            node.children.length > 0
               ? [
                   enumDecl(
                     "CodingKeys",
@@ -732,7 +774,7 @@ const childNodeToDeclNode = (
                           "tag",
                           undefined,
                           stringLiteralExpr(
-                            options.enumerationSynthesizationDiscriminatorKey
+                            options.decodableSynthesization.discriminatorKey
                           )
                         ),
                       ]),
@@ -758,7 +800,7 @@ const childNodeToDeclNode = (
                       modifiers: [declModifier(keywordToken(Keyword.private))],
                       inheritanceClause: [
                         identifierType("String"),
-                        identifierType("CodingKey"),
+                        identifierType("Decodable"),
                       ],
                     },
                     enumCases.map((enumCase) =>
@@ -943,12 +985,15 @@ const childNodeToDeclNode = (
             modifiers: accessControlModifier(options),
             genericParameterClause: typeParameterNodesToGenericParameterClause(
               typeParameters,
+              options,
+              mainIdentifier
+            ),
+            inheritanceClause: addConformances(
+              node,
+              name,
+              mainIdentifier,
               options
             ),
-            inheritanceClause:
-              options.synthesizeDecodable === true
-                ? [identifierType("Decodable")]
-                : undefined,
           },
           filterNonNullable([
             ...node.children.map((ref) =>
@@ -967,7 +1012,8 @@ const childNodeToDeclNode = (
                 ]
               )
             ),
-            options.synthesizeDecodable === true && node.children.length > 0
+            options.decodableSynthesization !== undefined &&
+            node.children.length > 0
               ? initializerDecl(
                   {
                     modifiers: accessControlModifier(options),
@@ -1114,12 +1160,10 @@ const childNodeToDeclNode = (
             jsDoc,
             attributes: deprecatedDocToAttribute(jsDoc),
             modifiers: accessControlModifier(options),
-            inheritanceClause: filterNonNullable([
+            inheritanceClause: [
               identifierType("String"),
-              options.synthesizeDecodable === true
-                ? identifierType("Decodable")
-                : undefined,
-            ]),
+              ...(addConformances(node, name, mainIdentifier, options) ?? []),
+            ],
           },
           node.children.map((literal) =>
             enumCaseDecl(
@@ -1154,12 +1198,10 @@ const childNodeToDeclNode = (
             jsDoc,
             attributes: deprecatedDocToAttribute(jsDoc),
             modifiers: accessControlModifier(options),
-            inheritanceClause: filterNonNullable([
+            inheritanceClause: [
               identifierType(rawType),
-              options.synthesizeDecodable === true
-                ? identifierType("Decodable")
-                : undefined,
-            ]),
+              ...(addConformances(node, name, mainIdentifier, options) ?? []),
+            ],
           },
           node.children.map((literal) =>
             enumCaseDecl(
@@ -1190,11 +1232,11 @@ const childNodeToDeclNode = (
           typeParameters,
           {
             kind: SourceAst.NodeKind.Union,
-            jsDoc: node.jsDoc,
             fileName: node.fileName,
             children: [node],
           },
-          options
+          options,
+          mainIdentifier
         )
       }
 
@@ -1206,7 +1248,8 @@ const childNodeToDeclNode = (
 
 export const statementNodeToDeclNode = (
   node: SourceAst.StatementNode,
-  options: SwiftOptions
+  options: SwiftOptions,
+  mainIdentifier: string | undefined
 ): DeclNode | undefined => {
   if (ignoreNode(node, IGNORE_ENV)) {
     return undefined
@@ -1222,7 +1265,9 @@ export const statementNodeToDeclNode = (
           modifiers: accessControlModifier(options),
         },
         node.children
-          .map((child) => statementNodeToDeclNode(child, options))
+          .map((child) =>
+            statementNodeToDeclNode(child, options, mainIdentifier)
+          )
           .filter(isNotNullish)
       )
     case SourceAst.NodeKind.Enumeration:
@@ -1232,7 +1277,7 @@ export const statementNodeToDeclNode = (
           jsDoc: node.jsDoc,
           attributes: deprecatedDocToAttribute(node.jsDoc),
           modifiers: accessControlModifier(options),
-          inheritanceClause: filterNonNullable([
+          inheritanceClause: [
             identifierType(
               node.children.every((child) => typeof child.value === "string")
                 ? "String"
@@ -1244,10 +1289,9 @@ export const statementNodeToDeclNode = (
                 ? "Int"
                 : "Double"
             ),
-            options.synthesizeDecodable === true
-              ? identifierType("Decodable")
-              : undefined,
-          ]),
+            ...(addConformances(node, node.name, mainIdentifier, options) ??
+              []),
+          ],
         },
         node.children.map((member) =>
           enumCaseDecl(
@@ -1275,7 +1319,8 @@ export const statementNodeToDeclNode = (
         node.jsDoc,
         node.typeParameters,
         node.definition,
-        options
+        options,
+        mainIdentifier
       )
     case SourceAst.NodeKind.ExportAssignment:
       return childNodeToDeclNode(
@@ -1283,7 +1328,8 @@ export const statementNodeToDeclNode = (
         node.jsDoc,
         undefined,
         node.expression,
-        options
+        options,
+        mainIdentifier
       )
     default:
       return assertExhaustive(node)
@@ -1292,10 +1338,11 @@ export const statementNodeToDeclNode = (
 
 export const transformAst = (
   node: SourceAst.RootNode,
-  options: SwiftOptions
+  options: SwiftOptions,
+  mainIdentifier: string | undefined
 ): DeclNode[] | undefined =>
   ignoreNode(node, IGNORE_ENV)
     ? undefined
     : node.children
-        .map((child) => statementNodeToDeclNode(child, options))
+        .map((child) => statementNodeToDeclNode(child, options, mainIdentifier))
         .filter(isNotNullish)

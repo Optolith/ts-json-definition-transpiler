@@ -20,6 +20,10 @@
     "./ast": "./lib/ast.js",
     "./renderers": "./lib/renderers.js",
     "./renderers/*": "./lib/renderers/*.js",
+    "./renderers/swift": "./lib/renderers/swift/main.js",
+    "./renderers/swift/ast": "./lib/renderers/swift/ast/types.js",
+    "./renderers/swift/ast/creators": "./lib/renderers/swift/ast/creators.js",
+    "./renderers/swift/ast/guards": "./lib/renderers/swift/ast/guards.js",
     "./utils/ignoreNode": "./lib/utils/ignoreNode.js",
     "./utils/qualifiedName": "./lib/utils/qualifiedName.js"
   },

@@ -68,7 +68,8 @@ describe("generateStructInitializers", () => {
             },
           ],
         },
-        { packageName: "", generateStructInitializers: true }
+        { packageName: "", generateStructInitializers: true },
+        undefined
       ),
       [
         structDecl("Group", {}, [

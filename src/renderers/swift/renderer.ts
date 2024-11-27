@@ -5,6 +5,7 @@ import { Doc } from "../../ast.js"
 import { MetaInformation } from "../../main.js"
 import {
   isCodeBlockNode,
+  isEnumCaseDeclNode,
   isOptionalBindingConditionNode,
   isSwitchDefaultLabelNode,
 } from "./ast/guards.js"
@@ -666,7 +667,18 @@ const renderLabeledExprNode = (node: LabeledExprNode): string =>
   }${renderExprNode(node.expression)}`
 
 const renderMemberBlockItemListNode = (node: MemberBlockItemListNode): string =>
-  node.items.map(renderMemberBlockItemNode).join("\n\n")
+  node.items
+    .map(
+      (item, idx) =>
+        (idx === 0
+          ? ""
+          : isEnumCaseDeclNode(item.decl) &&
+            isEnumCaseDeclNode(node.items[idx - 1]!.decl) &&
+            item.decl.jsDoc === undefined
+          ? "\n"
+          : "\n\n") + renderMemberBlockItemNode(item)
+    )
+    .join("")
 
 const renderMemberBlockItemNode = (node: MemberBlockItemNode): string =>
   renderDeclNode(node.decl)
@@ -688,7 +700,7 @@ const renderSwitchCaseItemNode = (node: SwitchCaseItemNode): string =>
   renderPatternNode(node.pattern)
 
 const renderSwitchCaseListNode = (node: SwitchCaseListNode): string =>
-  node.cases.map(renderSwitchCaseNode).join("\n\n")
+  node.cases.map(renderSwitchCaseNode).join("\n")
 
 const renderSwitchCaseNode = (node: SwitchCaseNode): string =>
   joinSyntax(
@@ -741,7 +753,7 @@ const renderCodeBlockNode = (node: CodeBlockNode): string =>
   ` {\n${applyIndentation(1, renderCodeBlockItemListNode(node.statements))}\n}`
 
 const renderDeclNameArgumentsNode = (node: DeclNameArgumentsNode): string =>
-  `(${renderDeclNameArgumentListNode(node.arguments)})`
+  `<${renderDeclNameArgumentListNode(node.arguments)}>`
 
 const renderEnumCaseParameterClauseNode = (
   node: EnumCaseParameterClauseNode

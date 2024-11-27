@@ -30,7 +30,8 @@ describe("statementNodeToDeclNode", () => {
             name: "Group",
             children: [],
           },
-          { packageName: "" }
+          { packageName: "" },
+          undefined
         ),
         enumDecl("Group", {}, [])
       )
@@ -54,7 +55,8 @@ describe("statementNodeToDeclNode", () => {
               },
             ],
           },
-          { packageName: "" }
+          { packageName: "" },
+          undefined
         ),
         enumDecl(
           "Enumeration",
@@ -86,7 +88,8 @@ describe("statementNodeToDeclNode", () => {
               },
             ],
           },
-          { packageName: "" }
+          { packageName: "" },
+          undefined
         ),
         enumDecl(
           "Enumeration",
@@ -154,7 +157,8 @@ describe("statementNodeToDeclNode", () => {
               ],
             },
           },
-          { packageName: "" }
+          { packageName: "" },
+          undefined
         ),
         structDecl("Group", {}, [
           variableDecl({}, SwiftAst.Keyword.var, [
@@ -193,7 +197,8 @@ describe("statementNodeToDeclNode", () => {
               },
             },
           },
-          { packageName: "" }
+          { packageName: "" },
+          undefined
         ),
         typeAliasDecl(
           "Dict",
