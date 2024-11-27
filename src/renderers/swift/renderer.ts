@@ -2,10 +2,19 @@ import { isNotNullish } from "@optolith/helpers/nullable"
 import { assertExhaustive } from "@optolith/helpers/typeSafety"
 import { basename } from "node:path"
 import { Doc } from "../../ast.js"
-import { AstTransformer, Renderer } from "../../main.js"
+import { MetaInformation } from "../../main.js"
 import {
+  isCodeBlockNode,
+  isOptionalBindingConditionNode,
+  isSwitchDefaultLabelNode,
+} from "./ast/guards.js"
+import {
+  ArrayElementListNode,
+  ArrayElementNode,
+  ArrayExprNode,
   ArrayTypeNode,
   AssignmentExprNode,
+  AstRoot,
   AttributeListNode,
   AttributeNode,
   AttributeNode_Arguments,
@@ -24,8 +33,13 @@ import {
   CompositionTypeElementListNode,
   CompositionTypeElementNode,
   CompositionTypeNode,
+  ConditionElementListNode,
+  ConditionElementNode,
   DeclModifierListNode,
   DeclModifierNode,
+  DeclNameArgumentListNode,
+  DeclNameArgumentNode,
+  DeclNameArgumentsNode,
   DeclNode,
   DeclReferenceExprNode,
   DictionaryTypeNode,
@@ -36,23 +50,27 @@ import {
   EnumCaseParameterListNode,
   EnumCaseParameterNode,
   EnumDeclNode,
+  ExclamationMarkToken,
+  ExpressionPatternNode,
   ExpressionStmtNode,
   ExprNode,
   FloatLiteralExprNode,
+  FunctionCallExprNode,
   FunctionEffectSpecifiersNode,
   FunctionParameterClauseNode,
-  FunctionParameterList,
+  FunctionParameterListNode,
   FunctionParameterNode,
   FunctionSignatureNode,
-  GenericArgumentClause,
+  GenericArgumentClauseNode,
   GenericArgumentListNode,
   GenericArgumentNode,
-  GenericParameterClause,
+  GenericParameterClauseNode,
   GenericParameterListNode,
   GenericParameterNode,
   IdentifierPatternNode,
   IdentifierToken,
   IdentifierTypeNode,
+  IfExprNode,
   InfixOperatorExprNode,
   InheritanceClauseNode,
   InheritanceTypeListNode,
@@ -62,25 +80,38 @@ import {
   IntegerLiteralExprNode,
   Keyword,
   KeywordToken,
+  LabeledExprListNode,
+  LabeledExprNode,
   MemberAccessExprNode,
   MemberBlockItemListNode,
   MemberBlockItemNode,
   MemberBlockNode,
   NilLiteralExprNode,
   NodeKind,
+  OptionalBindingConditionNode,
   OptionalTypeNode,
   PatternBindingListNode,
   PatternBindingNode,
   PatternNode,
+  PostfixQuestionMarkToken,
   ReturnClauseNode,
+  SomeOrAnyTypeNode,
   StmtNode,
   StringLiteralExprNode,
   StructDeclNode,
+  SwitchCaseItemListNode,
+  SwitchCaseItemNode,
+  SwitchCaseLabelNode,
+  SwitchCaseListNode,
+  SwitchCaseNode,
+  SwitchDefaultLabelNode,
+  SwitchExprNode,
   ThrowsClauseNode,
+  ThrowStmtNode,
   Token,
   TokenKind,
-  transformAst,
-  TransformOptions,
+  TryExprNode,
+  TupleExprNode,
   TupleTypeElementListNode,
   TupleTypeElementNode,
   TupleTypeNode,
@@ -89,7 +120,7 @@ import {
   TypeInitializerClauseNode,
   TypeNode,
   VariableDeclNode,
-} from "./ast.js"
+} from "./ast/types.js"
 
 const prefixLines = (
   prefix: string,
@@ -131,10 +162,14 @@ const renderToken = (token: Token): string => {
   switch (token.kind) {
     case TokenKind.BinaryOperator:
       return renderBinaryOperatorToken(token)
+    case TokenKind.ExclamationMark:
+      return renderExclamationMarkToken(token)
     case TokenKind.Identifier:
       return renderIdentifierToken(token)
     case TokenKind.Keyword:
       return renderKeywordToken(token)
+    case TokenKind.PostfixQuestionMark:
+      return renderPostfixQuestionMarkToken(token)
     default:
       return assertExhaustive(token)
   }
@@ -143,10 +178,16 @@ const renderToken = (token: Token): string => {
 const renderBinaryOperatorToken = (token: BinaryOperatorToken): string =>
   token.operator
 
+const renderExclamationMarkToken = (_token: ExclamationMarkToken): string => "!"
+
 const renderIdentifierToken = (token: IdentifierToken): string =>
   token.identifier
 
 const renderKeywordToken = (token: KeywordToken): string => token.keyword
+
+const renderPostfixQuestionMarkToken = (
+  _token: PostfixQuestionMarkToken
+): string => "?"
 
 //#endregion
 
@@ -248,6 +289,8 @@ const renderVariableDeclNode = (node: VariableDeclNode): string =>
 
 const renderExprNode = (node: ExprNode): string => {
   switch (node.kind) {
+    case NodeKind.ArrayExpr:
+      return renderArrayExprNode(node)
     case NodeKind.AssignmentExpr:
       return renderAssignmentExprNode(node)
     case NodeKind.BinaryOperatorExpr:
@@ -258,6 +301,10 @@ const renderExprNode = (node: ExprNode): string => {
       return renderDeclReferenceExprNode(node)
     case NodeKind.FloatLiteralExpr:
       return renderFloatLiteralExprNode(node)
+    case NodeKind.FunctionCallExpr:
+      return renderFunctionCallExprNode(node)
+    case NodeKind.IfExpr:
+      return renderIfExprNode(node)
     case NodeKind.InfixOperatorExpr:
       return renderInfixOperatorExprNode(node)
     case NodeKind.IntegerLiteralExpr:
@@ -268,12 +315,21 @@ const renderExprNode = (node: ExprNode): string => {
       return renderNilLiteralExprNode(node)
     case NodeKind.StringLiteralExpr:
       return renderStringLiteralExprNode(node)
+    case NodeKind.SwitchExpr:
+      return renderSwitchExprNode(node)
+    case NodeKind.TryExpr:
+      return renderTryExprNode(node)
+    case NodeKind.TupleExpr:
+      return renderTupleExprNode(node)
     default:
       return assertExhaustive(node)
   }
 }
 
-const renderAssignmentExprNode = (node: AssignmentExprNode): string => "="
+const renderArrayExprNode = (node: ArrayExprNode): string =>
+  `[${renderArrayElementListNode(node.elements)}]`
+
+const renderAssignmentExprNode = (_node: AssignmentExprNode): string => "="
 
 const renderBinaryOperatorExprNode = (node: BinaryOperatorExprNode): string =>
   renderToken(node.operator)
@@ -282,10 +338,29 @@ const renderBooleanLiteralExprNode = (node: BooleanLiteralExprNode): string =>
   node.value ? "true" : "false"
 
 const renderDeclReferenceExprNode = (node: DeclReferenceExprNode): string =>
-  renderToken(node.baseName)
+  joinSyntax(
+    renderToken(node.baseName),
+    node.argumentNames && renderDeclNameArgumentsNode(node.argumentNames)
+  )
 
 const renderFloatLiteralExprNode = (node: FloatLiteralExprNode): string =>
   node.value.toString()
+
+const renderFunctionCallExprNode = (node: FunctionCallExprNode): string =>
+  `${renderExprNode(node.calledExpression)}(${renderLabeledExprListNode(
+    node.arguments
+  )})`
+
+const renderIfExprNode = (node: IfExprNode): string =>
+  `if ${renderConditionElementListNode(node.conditions)}${renderCodeBlockNode(
+    node.body
+  )}${
+    node.elseBody === undefined
+      ? ""
+      : isCodeBlockNode(node.elseBody)
+      ? ` else${renderCodeBlockNode(node.elseBody)}`
+      : ` else ${renderIfExprNode(node.elseBody)}`
+  }`
 
 const renderInfixOperatorExprNode = (node: InfixOperatorExprNode): string =>
   joinSyntax(
@@ -301,7 +376,8 @@ const renderIntegerLiteralExprNode = (node: IntegerLiteralExprNode): string =>
 
 const renderMemberAccessExprNode = (node: MemberAccessExprNode): string =>
   joinSyntax(
-    node.base && renderExprNode(node.base) + ".",
+    node.base && renderExprNode(node.base),
+    ".",
     renderDeclReferenceExprNode(node.declName)
   )
 
@@ -311,12 +387,42 @@ const renderNilLiteralExprNode = (_node: NilLiteralExprNode): string =>
 const renderStringLiteralExprNode = (node: StringLiteralExprNode): string =>
   `"${node.value}"`
 
+const renderSwitchExprNode = (node: SwitchExprNode): string =>
+  joinSyntax(
+    "switch ",
+    renderExprNode(node.subject),
+    " {\n",
+    renderSwitchCaseListNode(node.cases),
+    "\n}"
+  )
+
+const renderTryExprNode = (node: TryExprNode): string =>
+  `try${
+    node.questionOrExclamationMark === undefined
+      ? ""
+      : renderToken(node.questionOrExclamationMark)
+  } ${renderExprNode(node.expression)}`
+
+const renderTupleExprNode = (node: TupleExprNode): string =>
+  `(${renderLabeledExprListNode(node.elements)})`
+
 //#endregion
 
 //#region Patterns
 
-const renderPatternNode = (node: PatternNode): string =>
-  renderIdentifierPatternNode(node)
+const renderPatternNode = (node: PatternNode): string => {
+  switch (node.kind) {
+    case NodeKind.ExpressionPattern:
+      return renderExpressionPatternNode(node)
+    case NodeKind.IdentifierPattern:
+      return renderIdentifierPatternNode(node)
+    default:
+      return assertExhaustive(node)
+  }
+}
+
+const renderExpressionPatternNode = (node: ExpressionPatternNode): string =>
+  renderExprNode(node.expression)
 
 const renderIdentifierPatternNode = (node: IdentifierPatternNode): string =>
   node.name
@@ -325,11 +431,22 @@ const renderIdentifierPatternNode = (node: IdentifierPatternNode): string =>
 
 //#region Statements
 
-const renderStmtNode = (node: StmtNode): string =>
-  renderExpressionStmtNode(node)
+const renderStmtNode = (node: StmtNode): string => {
+  switch (node.kind) {
+    case NodeKind.ExpressionStmt:
+      return renderExpressionStmtNode(node)
+    case NodeKind.ThrowStmt:
+      return renderThrowStmtNode(node)
+    default:
+      return assertExhaustive(node)
+  }
+}
 
 const renderExpressionStmtNode = (node: ExpressionStmtNode): string =>
   renderExprNode(node.expression)
+
+const renderThrowStmtNode = (node: ThrowStmtNode): string =>
+  `throw ${renderExprNode(node.expression)}`
 
 //#endregion
 
@@ -343,12 +460,14 @@ const renderTypeNode = (node: TypeNode): string => {
       return renderCompositionTypeNode(node)
     case NodeKind.DictionaryType:
       return renderDictionaryTypeNode(node)
-    case NodeKind.OptionalType:
-      return renderOptionalTypeNode(node)
-    case NodeKind.TupleType:
-      return renderTupleTypeNode(node)
     case NodeKind.IdentifierType:
       return renderIdentifierTypeNode(node)
+    case NodeKind.OptionalType:
+      return renderOptionalTypeNode(node)
+    case NodeKind.SomeOrAnyType:
+      return renderSomeOrAnyTypeNode(node)
+    case NodeKind.TupleType:
+      return renderTupleTypeNode(node)
     default:
       return assertExhaustive(node)
   }
@@ -372,6 +491,9 @@ const renderIdentifierTypeNode = (node: IdentifierTypeNode): string =>
 
 const renderOptionalTypeNode = (node: OptionalTypeNode): string =>
   `${renderTypeNode(node.wrappedType)}?`
+
+const renderSomeOrAnyTypeNode = (node: SomeOrAnyTypeNode): string =>
+  `${renderToken(node.someOrAnySpecifier)} ${renderTypeNode(node.constraint)}`
 
 const renderTupleTypeNode = (node: TupleTypeNode): string =>
   `(${renderTupleTypeElementListNode(node.elements)})`
@@ -402,7 +524,7 @@ const renderAvailabilityArgumentNode_Argument = (
 }
 
 const renderCodeBlockItemListNode = (node: CodeBlockItemListNode): string =>
-  node.elements.map(renderCodeBlockItemNode).join("\n")
+  node.items.map(renderCodeBlockItemNode).join("\n")
 
 const renderCodeBlockItemNode = (node: CodeBlockItemNode): string =>
   renderCodeBlockItemNode_Item(node.item)
@@ -416,23 +538,36 @@ const renderCodeBlockItemNode_Item = (node: CodeBlockItemNode_Item): string => {
     case NodeKind.TypeAliasDecl:
     case NodeKind.VariableDecl:
       return renderDeclNode(node)
+    case NodeKind.ArrayExpr:
     case NodeKind.AssignmentExpr:
     case NodeKind.BinaryOperatorExpr:
     case NodeKind.BooleanLiteralExpr:
     case NodeKind.DeclReferenceExpr:
     case NodeKind.FloatLiteralExpr:
+    case NodeKind.FunctionCallExpr:
+    case NodeKind.IfExpr:
     case NodeKind.InfixOperatorExpr:
     case NodeKind.IntegerLiteralExpr:
     case NodeKind.MemberAccessExpr:
     case NodeKind.NilLiteralExpr:
     case NodeKind.StringLiteralExpr:
+    case NodeKind.SwitchExpr:
+    case NodeKind.TryExpr:
+    case NodeKind.TupleExpr:
       return renderExprNode(node)
     case NodeKind.ExpressionStmt:
+    case NodeKind.ThrowStmt:
       return renderStmtNode(node)
     default:
       return assertExhaustive(node)
   }
 }
+
+const renderArrayElementListNode = (node: ArrayElementListNode): string =>
+  node.elements.map(renderArrayElementNode).join(", ")
+
+const renderArrayElementNode = (node: ArrayElementNode): string =>
+  renderExprNode(node.expression)
 
 const renderCompositionTypeElementListNode = (
   node: CompositionTypeElementListNode
@@ -442,6 +577,15 @@ const renderCompositionTypeElementNode = (
   node: CompositionTypeElementNode
 ): string => renderTypeNode(node.type)
 
+const renderConditionElementListNode = (
+  node: ConditionElementListNode
+): string => node.elements.map(renderConditionElementNode).join(", ")
+
+const renderConditionElementNode = (node: ConditionElementNode): string =>
+  isOptionalBindingConditionNode(node.type)
+    ? renderOptionalBindingConditionNode(node.type)
+    : renderExprNode(node.type)
+
 const renderDeclModifierListNode = (node: DeclModifierListNode): string =>
   `${node.modifiers.map(renderDeclModifierNode).join(" ")} `
 
@@ -450,6 +594,13 @@ const renderDeclModifierNode = (node: DeclModifierNode): string =>
     renderToken(node.name),
     node.detail && `(${renderToken(node.detail)})`
   )
+
+const renderDeclNameArgumentListNode = (
+  node: DeclNameArgumentListNode
+): string => node.arguments.map(renderDeclNameArgumentNode).join(", ")
+
+const renderDeclNameArgumentNode = (node: DeclNameArgumentNode): string =>
+  renderToken(node.name)
 
 const renderEnumCaseElementListNode = (node: EnumCaseElementListNode): string =>
   node.elements.map(renderEnumCaseElementNode).join(", ")
@@ -472,7 +623,7 @@ const renderEnumCaseParameterNode = (node: EnumCaseParameterNode): string =>
     renderTypeNode(node.type)
   )
 
-const renderFunctionParameterList = (node: FunctionParameterList): string =>
+const renderFunctionParameterList = (node: FunctionParameterListNode): string =>
   node.parameters.map(renderFunctionParameterNode).join(", ")
 
 const renderFunctionParameterNode = (node: FunctionParameterNode): string =>
@@ -506,6 +657,14 @@ const renderInheritanceTypeListNode = (node: InheritanceTypeListNode): string =>
 const renderInheritanceTypeNode = (node: InheritanceTypeNode): string =>
   renderTypeNode(node.type)
 
+const renderLabeledExprListNode = (node: LabeledExprListNode): string =>
+  node.expressions.map(renderLabeledExprNode).join(", ")
+
+const renderLabeledExprNode = (node: LabeledExprNode): string =>
+  `${
+    node.label === undefined ? "" : `${renderToken(node.label)}: `
+  }${renderExprNode(node.expression)}`
+
 const renderMemberBlockItemListNode = (node: MemberBlockItemListNode): string =>
   node.items.map(renderMemberBlockItemNode).join("\n\n")
 
@@ -517,9 +676,28 @@ const renderPatternBindingListNode = (node: PatternBindingListNode): string =>
 
 const renderPatternBindingNode = (node: PatternBindingNode): string =>
   joinSyntax(
-    node.pattern.name,
+    renderPatternNode(node.pattern),
     node.typeAnnotation && renderTypeAnnotationNode(node.typeAnnotation),
     node.initializer && renderInitializerClauseNode(node.initializer)
+  )
+
+const renderSwitchCaseItemListNode = (node: SwitchCaseItemListNode): string =>
+  node.items.map(renderSwitchCaseItemNode).join("\n\n")
+
+const renderSwitchCaseItemNode = (node: SwitchCaseItemNode): string =>
+  renderPatternNode(node.pattern)
+
+const renderSwitchCaseListNode = (node: SwitchCaseListNode): string =>
+  node.cases.map(renderSwitchCaseNode).join("\n\n")
+
+const renderSwitchCaseNode = (node: SwitchCaseNode): string =>
+  joinSyntax(
+    node.attribute && renderAttributeNode(node.attribute),
+    isSwitchDefaultLabelNode(node.label)
+      ? renderSwitchDefaultLabelNode(node.label)
+      : renderSwitchCaseLabelNode(node.label),
+    ":\n",
+    applyIndentation(1, renderCodeBlockItemListNode(node.statements))
   )
 
 const renderTupleTypeElementListNode = (
@@ -562,6 +740,9 @@ const renderAvailabilityTokenArgumentNode = (
 const renderCodeBlockNode = (node: CodeBlockNode): string =>
   ` {\n${applyIndentation(1, renderCodeBlockItemListNode(node.statements))}\n}`
 
+const renderDeclNameArgumentsNode = (node: DeclNameArgumentsNode): string =>
+  `(${renderDeclNameArgumentListNode(node.arguments)})`
+
 const renderEnumCaseParameterClauseNode = (
   node: EnumCaseParameterClauseNode
 ): string => `(${renderEnumCaseParameterListNode(node.parameters)})`
@@ -586,11 +767,12 @@ const renderFunctionSignatureNode = (node: FunctionSignatureNode): string =>
     node.returnClause && renderReturnClauseNode(node.returnClause)
   )
 
-const renderGenericArgumentClause = (node: GenericArgumentClause): string =>
+const renderGenericArgumentClause = (node: GenericArgumentClauseNode): string =>
   `<${renderGenericArgumentListNode(node.arguments)}>`
 
-const renderGenericParameterClause = (node: GenericParameterClause): string =>
-  `<${renderGenericParameterListNode(node.parameters)}>`
+const renderGenericParameterClause = (
+  node: GenericParameterClauseNode
+): string => `<${renderGenericParameterListNode(node.parameters)}>`
 
 const renderInheritanceClauseNode = (node: InheritanceClauseNode): string =>
   `: ${renderInheritanceTypeListNode(node.inheritedTypes)}`
@@ -601,7 +783,25 @@ const renderInitializerClauseNode = (node: InitializerClauseNode): string =>
 const renderMemberBlockNode = (node: MemberBlockNode): string =>
   ` {\n${applyIndentation(1, renderMemberBlockItemListNode(node.members))}\n}`
 
-const renderReturnClauseNode = (node: ReturnClauseNode): string => ""
+const renderOptionalBindingConditionNode = (
+  node: OptionalBindingConditionNode
+): string =>
+  joinSyntax(
+    renderToken(node.bindingSpecifier),
+    " ",
+    renderPatternNode(node.pattern),
+    node.typeAnnotation && renderTypeAnnotationNode(node.typeAnnotation),
+    node.initializer && renderInitializerClauseNode(node.initializer)
+  )
+
+const renderSwitchCaseLabelNode = (node: SwitchCaseLabelNode): string =>
+  `case ${renderSwitchCaseItemListNode(node.caseItems)}`
+
+const renderSwitchDefaultLabelNode = (_node: SwitchDefaultLabelNode): string =>
+  `default`
+
+const renderReturnClauseNode = (node: ReturnClauseNode): string =>
+  ` -> ${renderTypeNode(node.type)}`
 
 const renderThrowsClauseNode = (node: ThrowsClauseNode): string =>
   joinSyntax(
@@ -618,45 +818,22 @@ const renderTypeInitializerClauseNode = (
 
 //#endregion
 
-const createTransformer = (options: SwiftOptions): AstTransformer => {
-  const transformer: AstTransformer = (ast, meta) => {
-    const main = ast.jsDoc?.tags.main
+export const renderAstRoot = (
+  ast: AstRoot,
+  meta: MetaInformation,
+  options: RendererOptions
+): string =>
+  joinSyntax(
+    prefixLines(
+      "//",
+      `\n  ${basename(meta.absolutePath)}\n  ${options.packageName}\n`,
+      true
+    ),
+    "\n\n",
+    ast.map((node) => renderDeclNode(node)).join("\n\n"),
+    "\n"
+  )
 
-    const swiftAst = transformAst(ast, options)
-
-    if (swiftAst === undefined) {
-      return undefined
-    }
-
-    return `//
-//  ${basename(meta.absolutePath)}
-//  ${options.packageName}
-//
-
-import DiscriminatedEnum
-
-${swiftAst.map((node) => renderDeclNode(node)).join("\n\n")}\n`
-  }
-
-  return transformer
-}
-
-export const swiftRenderer = (options: SwiftOptions): Renderer => ({
-  fileExtension: ".swift",
-  transformer: createTransformer(options),
-  resolveTypeParameters: false,
-})
-
-export type SwiftOptions = TransformOptions & {
-  /**
-   * The package name to use in all file comments.
-   */
+export type RendererOptions = {
   packageName: string
-
-  /**
-   *
-   * @param ast The AST to modify.
-   * @returns A new AST.
-   */
-  modifyAst?: (ast: readonly DeclNode[]) => DeclNode[]
 }
