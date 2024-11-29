@@ -30,7 +30,7 @@ export type JsonSchemaRendererOptions = {
   spec?: JsonSchemaSpec
 
   /**
-   * Whether to allow unresolved additional keys in object definitions.
+   * Whether to allow unresolved additional keys in object definitions. This sets the `additionalProperties` JSON Schema keyword for all applicable types.
    * @default false
    */
   allowAdditionalProperties?: boolean

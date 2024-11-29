@@ -1,6 +1,6 @@
-# Optolith TypeScript to JSON Schema and Markdown
+# Optolith TypeScript Data Model Compiler and Documentation Generator
 
-This tool provides an opinionated solution for generating **both JSON Schemas and corresponding Markdown documentation** from a set of TypeScript files. The tool does not support all types possible in TypeScript, only those that are needed in [Optolith](https://github.com/elyukai/optolith-client) and that can be represented in a JSON Schema as well.
+This tool provides an opinionated solution for generating **type definitions for multiple targets as well as Markdown documentation** from a set of TypeScript files. The tool does not support all types possible in TypeScript, only those that are needed in [Optolith](https://github.com/elyukai/optolith-client) and that can be represented in a JSON Schema as well.
 
 ## Why?
 
@@ -9,6 +9,14 @@ There are TypeScript to JSON Schema, JSON Schema to Markdown and TypeScript to M
 The main issue for JSON Schema with the existing solutions is that the converters that output JSON Schema do not support the full feature set of JSON Schema. The biggest issue is `patternProperties`, which is very important here, since the files that are validated with the JSON Schema documents are edited by hand and `patternProperties` can reduce the number of errors without a need for a custom programmatic validation.
 
 The main issue for Markdown with the existing solutions is that if you convert from TypeScript, they usually target developers, and if you convert from Markdown, the output has a lot of files or does not support the full JSON Schema feature set.
+
+## Targets
+
+The following targets are currently supported:
+
+- [JSON Schema](./docs/targets/jsonSchema.md)
+- [Markdown](./docs/targets/markdown.md)
+- [Swift](./docs/targets/swift.md)
 
 ## Installation
 
@@ -33,7 +41,7 @@ generate({
   outputs: [
     {
       targetDir: join(root, "schema"),
-      renderer: jsonSchema({ spec: jsonSchemaSpec })
+      renderer: jsonSchema({ spec: "Draft_07" })
     },
     {
       targetDir: join(root, "docs", "reference"),
@@ -90,44 +98,30 @@ export default {
 }
 ```
 
-### Main type
+### Supported JSDoc Tags
 
-A module comment may indicate the main type of the module, which can be used by directly importing the JSON Schema without the need to specify the definition inside. The type is referenced to by its name.
-
-Example:
-
-```ts
-/**
- * @main Attribute
- */
-```
-
-If no `@main` attribute is present, a default export is used as a fallback.
-
-### Supported JSDoc features
-
-JSDoc | TypeScript | Tag Comment Type | JSON Schema | Markdown
-:-- | :-- | :-- | :-- | :--
-Description | all | `markdown` | `description` keyword | Description
-`@title` | all | `string` | `title` keyword | Heading
-`@markdown` | `string` | `boolean` | — | Type: Markdown-formatted text
-`@minLength` | `string` | `number` | `minLength` keyword | Minimum Length
-`@maxLength` | `string` | `number` | `maxLength` keyword | Maximum Length
-`@pattern` | `string` | `string` | `pattern` keyword | Pattern
-`@format` | `string` | `string` | `format` keyword | Format
-`@integer` | `number` | `boolean` | `"type": "integer"` instead of `"type": "number"` | Type: Integer
-`@minimum` | `number` | `number` | `minimum` keyword | Minimum
-`@maximum` | `number` | `number` | `maximum` keyword | Maximum
-`@exclusiveMinimum` | `number` | `number` | `exclusiveMinimum` keyword | Exclusive Minimum
-`@exclusiveMaximum` | `number` | `number` | `exclusiveMaximum` keyword | Exclusive Maximum
-`@multipleOf` | `number` | `number` | `multipleOf` keyword | Multiple of
-`@minItems` | `array` | `number` | `minItems` keyword | Minimum Items
-`@maxItems` | `array` | `number` | `maxItems` keyword | Maximum Items
-`@uniqueItems` | `array` | `boolean` | `uniqueItems` keyword | Unique Items
-`@minProperties` | `object` | `number` | `minProperties` keyword | Minimum Properties
-`@maxProperties` | `object` | `number` | `maxProperties` keyword | Maximum Properties
-`@patternProperties` | `object` | `string` | `patternProperties` keyword | Values matching pattern
-`readonly` modifier | property | `boolean` | `readOnly` keyword | Read-only property
+JSDoc Tag | Attachable to | Tag Comment Type
+:-- | :-- | :--
+`@title` | all | `string`
+`@default` | all | `any`
+`@deprecated` | all | `boolean \| string`
+`@markdown` | `string` | `boolean`
+`@minLength` | `string` | `number`
+`@maxLength` | `string` | `number`
+`@pattern` | `string` | `string`
+`@format` | `string` | `string`
+`@integer` | `number` | `boolean`
+`@minimum` | `number` | `number`
+`@maximum` | `number` | `number`
+`@exclusiveMinimum` | `number` | `number`
+`@exclusiveMaximum` | `number` | `number`
+`@multipleOf` | `number` | `number`
+`@minItems` | `array` | `number`
+`@maxItems` | `array` | `number`
+`@uniqueItems` | `array` | `boolean`
+`@minProperties` | `object` | `number`
+`@maxProperties` | `object` | `number`
+`@patternProperties` | `object` | `string`
 
 #### Boolean tags
 
@@ -155,7 +149,7 @@ type Dictionary = {
 
 Generics are supported, but some export formats may not be able to support them, such as JSON Schema. You can use the `resolveTypeParameters` for a `Renderer` to receive an AST without type parameters. Types with type parameters are still present if all of their type parameters have default arguments, which replace all type parameter occurrences in the type definition. The AST type is the same, but you can ignore all type argument and type parameter properties, since they are all `undefined`.
 
-## Defining your own renderer
+## Defining your own target
 
 If you want to write your own renderer, you must provide a value that conforms to the `Renderer` type. This type consists of three parts. An AST transformer function, a file extension and (optionally) whether to resolve type parameters (see section about generics).
 

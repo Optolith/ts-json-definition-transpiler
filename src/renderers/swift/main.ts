@@ -59,7 +59,7 @@ export type SwiftOptions = {
   convertIdentifiersToNamingConvention?: boolean
 
   /**
-   * if generated `struct` types should have initializers generated. Initializers will have default `nil` values for optional members.
+   * If generated `struct` types should have initializers generated. Initializers will have default `nil` values for optional members.
    */
   generateStructInitializers?: boolean
 
