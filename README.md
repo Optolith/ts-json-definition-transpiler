@@ -88,7 +88,7 @@ export default {
   outputs: [
     {
       targetDir: join(root, "schema"),
-      renderer: jsonSchema({ spec: jsonSchemaSpec })
+      renderer: jsonSchema({ spec: "Draft_07" })
     },
     {
       targetDir: join(root, "docs", "reference"),
