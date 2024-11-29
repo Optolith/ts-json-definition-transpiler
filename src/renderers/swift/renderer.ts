@@ -1,5 +1,6 @@
 import { isNotNullish } from "@optolith/helpers/nullable"
 import { assertExhaustive } from "@optolith/helpers/typeSafety"
+import { EOL } from "node:os"
 import { basename } from "node:path"
 import { Doc } from "../../ast.js"
 import { MetaInformation } from "../../main.js"
@@ -129,19 +130,22 @@ const prefixLines = (
   includeEmptyLines: boolean = false
 ): string =>
   text
-    .split("\n")
+    .split(EOL)
     .map((line) =>
       includeEmptyLines || line.length > 0 ? prefix + line : line
     )
-    .join("\n")
+    .join(EOL)
 
-const applyIndentation = (indentLevel: number, text: string): string =>
-  prefixLines("    ".repeat(indentLevel), text)
+const applyIndentation = (
+  indentLevel: number,
+  text: string,
+  spaces: number = 4
+): string => prefixLines(" ".repeat(spaces * indentLevel), text)
 
 const renderDocumentation = (jsDoc?: Doc): string =>
   jsDoc?.comment === undefined
     ? ""
-    : prefixLines("/// ", jsDoc.comment, true) + "\n"
+    : prefixLines("/// ", jsDoc.comment, true) + EOL
 
 const joinSyntax = (...syntaxes: (string | undefined)[]): string =>
   syntaxes.filter(isNotNullish).join("")
@@ -392,9 +396,11 @@ const renderSwitchExprNode = (node: SwitchExprNode): string =>
   joinSyntax(
     "switch ",
     renderExprNode(node.subject),
-    " {\n",
+    " {",
+    EOL,
     renderSwitchCaseListNode(node.cases),
-    "\n}"
+    EOL,
+    "}"
   )
 
 const renderTryExprNode = (node: TryExprNode): string =>
@@ -525,7 +531,7 @@ const renderAvailabilityArgumentNode_Argument = (
 }
 
 const renderCodeBlockItemListNode = (node: CodeBlockItemListNode): string =>
-  node.items.map(renderCodeBlockItemNode).join("\n")
+  node.items.map(renderCodeBlockItemNode).join(EOL)
 
 const renderCodeBlockItemNode = (node: CodeBlockItemNode): string =>
   renderCodeBlockItemNode_Item(node.item)
@@ -630,7 +636,7 @@ const renderFunctionParameterList = (node: FunctionParameterListNode): string =>
 const renderFunctionParameterNode = (node: FunctionParameterNode): string =>
   joinSyntax(
     node.attributes &&
-      renderAttributeListNode(node.attributes).split("\n").join(" "),
+      renderAttributeListNode(node.attributes).split(EOL).join(" "),
     node.modifiers && renderDeclModifierListNode(node.modifiers),
     renderLabel(node.firstName, node.secondName),
     renderTypeNode(node.type),
@@ -675,8 +681,8 @@ const renderMemberBlockItemListNode = (node: MemberBlockItemListNode): string =>
           : isEnumCaseDeclNode(item.decl) &&
             isEnumCaseDeclNode(node.items[idx - 1]!.decl) &&
             item.decl.jsDoc === undefined
-          ? "\n"
-          : "\n\n") + renderMemberBlockItemNode(item)
+          ? EOL
+          : EOL + EOL) + renderMemberBlockItemNode(item)
     )
     .join("")
 
@@ -694,13 +700,13 @@ const renderPatternBindingNode = (node: PatternBindingNode): string =>
   )
 
 const renderSwitchCaseItemListNode = (node: SwitchCaseItemListNode): string =>
-  node.items.map(renderSwitchCaseItemNode).join("\n\n")
+  node.items.map(renderSwitchCaseItemNode).join(EOL + EOL)
 
 const renderSwitchCaseItemNode = (node: SwitchCaseItemNode): string =>
   renderPatternNode(node.pattern)
 
 const renderSwitchCaseListNode = (node: SwitchCaseListNode): string =>
-  node.cases.map(renderSwitchCaseNode).join("\n")
+  node.cases.map(renderSwitchCaseNode).join(EOL)
 
 const renderSwitchCaseNode = (node: SwitchCaseNode): string =>
   joinSyntax(
@@ -708,7 +714,8 @@ const renderSwitchCaseNode = (node: SwitchCaseNode): string =>
     isSwitchDefaultLabelNode(node.label)
       ? renderSwitchDefaultLabelNode(node.label)
       : renderSwitchCaseLabelNode(node.label),
-    ":\n",
+    ":",
+    EOL,
     applyIndentation(1, renderCodeBlockItemListNode(node.statements))
   )
 
@@ -727,7 +734,7 @@ const renderTupleTypeElementNode = (node: TupleTypeElementNode): string =>
 //#region Attributes
 
 const renderAttributeListNode = (node: AttributeListNode): string =>
-  node.attributes.map(renderAttributeNode).join("\n") + "\n"
+  node.attributes.map(renderAttributeNode).join(EOL) + EOL
 
 const renderAttributeNode = (node: AttributeNode): string =>
   `@${renderTypeNode(node.attributeName)}(${renderAttributeNode_Arguments(
@@ -750,7 +757,10 @@ const renderAvailabilityTokenArgumentNode = (
 ): string => renderToken(node.token)
 
 const renderCodeBlockNode = (node: CodeBlockNode): string =>
-  ` {\n${applyIndentation(1, renderCodeBlockItemListNode(node.statements))}\n}`
+  ` {${EOL}${applyIndentation(
+    1,
+    renderCodeBlockItemListNode(node.statements)
+  )}\n}`
 
 const renderDeclNameArgumentsNode = (node: DeclNameArgumentsNode): string =>
   `<${renderDeclNameArgumentListNode(node.arguments)}>`
@@ -793,7 +803,10 @@ const renderInitializerClauseNode = (node: InitializerClauseNode): string =>
   " = " + renderExprNode(node.value)
 
 const renderMemberBlockNode = (node: MemberBlockNode): string =>
-  ` {\n${applyIndentation(1, renderMemberBlockItemListNode(node.members))}\n}`
+  ` {${EOL}${applyIndentation(
+    1,
+    renderMemberBlockItemListNode(node.members)
+  )}${EOL}}`
 
 const renderOptionalBindingConditionNode = (
   node: OptionalBindingConditionNode
@@ -830,20 +843,28 @@ const renderTypeInitializerClauseNode = (
 
 //#endregion
 
+const renderFileHeader = (absolutePath: string, packageName: string) =>
+  prefixLines(
+    "//",
+    applyIndentation(
+      1,
+      ["", basename(absolutePath), packageName, ""].join(EOL),
+      2
+    ),
+    true
+  )
+
 export const renderAstRoot = (
   ast: AstRoot,
   meta: MetaInformation,
   options: RendererOptions
 ): string =>
   joinSyntax(
-    prefixLines(
-      "//",
-      `\n  ${basename(meta.absolutePath)}\n  ${options.packageName}\n`,
-      true
-    ),
-    "\n\n",
-    ast.map((node) => renderDeclNode(node)).join("\n\n"),
-    "\n"
+    renderFileHeader(meta.absolutePath, options.packageName),
+    EOL,
+    EOL,
+    ast.map((node) => renderDeclNode(node)).join(EOL + EOL),
+    EOL
   )
 
 export type RendererOptions = {
