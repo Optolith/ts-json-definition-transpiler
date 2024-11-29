@@ -1,169 +1,36 @@
 import { assertExhaustive } from "@optolith/helpers/typeSafety"
-import { EOL } from "node:os"
-import { sep } from "node:path"
+import { sep } from "path"
 import {
   ChildNode,
   Doc,
   DocTagTypes,
   ExportAssignmentNode,
+  isReferenceNode,
   NodeKind,
   RootNode,
   StatementNode,
   TokenKind,
-  isReferenceNode,
-} from "../ast.js"
-import { AstTransformer, Renderer } from "../main.js"
-import { ignoreNode } from "../utils/ignoreNode.js"
+} from "../../ast.js"
+import { ignoreNode } from "../../utils/ignoreNode.js"
 import {
   getAliasedImportName,
   getFullyQualifiedNameAsPath,
   getRelativeExternalPath,
-} from "../utils/references.js"
+} from "../../utils/references.js"
+import { JsonSchemaRendererOptions, JsonSchemaSpec } from "./main.js"
+import {
+  ArrayConstraints,
+  Definition,
+  Group,
+  isReference,
+  isStrictObject,
+  JsonSchema,
+  NumberConstraints,
+  ObjectConstraints,
+  StringConstraints,
+} from "./types.js"
 
 const IGNORE_ENV = "json-schema"
-
-/**
- * Descriptive annotations of the JSON type definition
- */
-interface Annotated {
-  title?: string
-  description?: string
-  default?: unknown
-  readOnly?: boolean
-}
-
-interface ObjectConstraints {
-  minProperties?: number
-  maxProperties?: number
-}
-
-interface ObjectBase extends ObjectConstraints, Annotated {
-  type: "object"
-}
-
-interface StrictObject extends ObjectBase {
-  properties: {
-    [key: string]: Definition
-  }
-  required: string[]
-  additionalProperties?: boolean
-}
-
-const isStrictObject = (def: Definition): def is StrictObject =>
-  typeof def === "object" && "properties" in def
-
-interface PatternDictionary extends ObjectBase {
-  patternProperties: {
-    [pattern: string]: Definition
-  }
-  additionalProperties?: boolean
-}
-
-interface Dictionary extends ObjectBase {
-  additionalProperties: Definition
-}
-
-interface ArrayConstraints {
-  minItems?: number
-  maxItems?: number
-  uniqueItems?: boolean
-}
-
-interface Array extends ArrayConstraints, Annotated {
-  type: "array"
-  items: Definition
-}
-
-type Tuple = Tuple07 | Tuple202012
-
-interface Tuple07 extends Annotated {
-  type: "array"
-  items: Definition[]
-  minItems: number
-  maxItems: number
-  additionalItems: boolean
-}
-
-interface Tuple202012 extends Annotated {
-  type: "array"
-  prefixItems: Definition[]
-  minItems: number
-  maxItems: number
-  items: false
-}
-
-interface NumberConstraints {
-  minimum?: number
-  maximum?: number
-  exclusiveMinimum?: number
-  exclusiveMaximum?: number
-  multipleOf?: number
-}
-
-interface Number extends NumberConstraints, Annotated {
-  type: "number" | "integer"
-}
-
-interface StringConstraints {
-  minLength?: number
-  maxLength?: number
-  pattern?: number
-  format?: number
-}
-
-interface String extends StringConstraints, Annotated {
-  type: "string"
-}
-
-interface Boolean extends Annotated {
-  type: "boolean"
-}
-
-interface Union extends Annotated {
-  oneOf: Definition[]
-}
-
-interface Intersection {
-  type?: "object"
-  allOf: Definition[]
-  unevaluatedProperties?: boolean
-}
-
-interface Constant extends Annotated {
-  const: string | number | boolean
-}
-
-interface Enum extends Annotated {
-  enum: (string | number)[]
-}
-
-interface Reference extends Annotated {
-  $ref: string
-}
-
-const isReference = (def: Definition): def is Reference =>
-  typeof def === "object" && "$ref" in def
-
-interface Group {
-  _groupBrand: any
-  [identifier: string]: Definition
-}
-
-type Definition =
-  | StrictObject
-  | Dictionary
-  | PatternDictionary
-  | Array
-  | Number
-  | String
-  | Boolean
-  | Reference
-  | Union
-  | Intersection
-  | Constant
-  | Enum
-  | Tuple
-  | Group
 
 const toAnnotations = (jsDoc: Doc | undefined) => ({
   title: jsDoc?.tags.title,
@@ -504,30 +371,17 @@ const getMainRef = (
   }
 }
 
-const astToJsonSchema =
-  (options: Required<JsonSchemaRendererOptions>): AstTransformer =>
-  (file, { relativePath }): string => {
-    const { spec } = options
-
-    const jsonSchema = {
-      $schema: schemaUri(spec),
-      $id: toForwardSlashAbsolutePath(relativePath),
-      $ref: getMainRef(file, spec),
-      [defsKey(spec)]: Object.fromEntries(
-        file.children
-          .map((node) => [
-            node.name,
-            statementToDefinition(node, file, options),
-          ])
-          .filter(([_, def]) => def !== undefined)
-      ),
-    }
-
-    return `${JSON.stringify(jsonSchema, undefined, 2).replace(
-      /\n/g,
-      EOL
-    )}${EOL}`
+const isUnresolvedPropertiesSupported = (spec: JsonSchemaSpec): boolean => {
+  switch (spec) {
+    case JsonSchemaSpec.Draft_07:
+      return false
+    case JsonSchemaSpec.Draft_2019_09:
+    case JsonSchemaSpec.Draft_2020_12:
+      return true
+    default:
+      return assertExhaustive(spec, "invalid spec")
   }
+}
 
 const defsKey = (spec: JsonSchemaSpec) => {
   switch (spec) {
@@ -554,46 +408,43 @@ const schemaUri = (spec: JsonSchemaSpec): string => {
   }
 }
 
-const isUnresolvedPropertiesSupported = (spec: JsonSchemaSpec): boolean => {
-  switch (spec) {
+export const transformAst = (
+  file: RootNode,
+  options: Required<JsonSchemaRendererOptions>,
+  relativePath: string
+): JsonSchema => {
+  const schema = schemaUri(options.spec)
+  const id = toForwardSlashAbsolutePath(relativePath)
+  const ref = getMainRef(file, options.spec)
+  const definitions = Object.fromEntries(
+    file.children
+      .map(
+        (node) =>
+          [node.name, statementToDefinition(node, file, options)] as const
+      )
+      .filter(
+        (keyValue): keyValue is [string, Definition] =>
+          keyValue[1] !== undefined
+      )
+  )
+
+  switch (options.spec) {
     case JsonSchemaSpec.Draft_07:
-      return false
+      return {
+        $schema: schema,
+        $id: id,
+        $ref: ref,
+        definitions,
+      }
     case JsonSchemaSpec.Draft_2019_09:
     case JsonSchemaSpec.Draft_2020_12:
-      return true
+      return {
+        $schema: schema,
+        $id: id,
+        $ref: ref,
+        $defs: definitions,
+      }
     default:
-      return assertExhaustive(spec, "invalid spec")
+      return assertExhaustive(options.spec, "invalid spec")
   }
 }
-
-export const JsonSchemaSpec = Object.freeze({
-  Draft_07: "Draft_07",
-  Draft_2019_09: "Draft_2019_09",
-  Draft_2020_12: "Draft_2020_12",
-})
-
-export type JsonSchemaSpec = keyof typeof JsonSchemaSpec
-
-export type JsonSchemaRendererOptions = {
-  /**
-   * The used JSON Schema specification.
-   * @default JsonSchemaSpec.Draft_2020_12
-   */
-  spec?: JsonSchemaSpec
-
-  /**
-   * Whether to allow unresolved additional keys in object definitions.
-   * @default false
-   */
-  allowAdditionalProperties?: boolean
-}
-
-export const jsonSchemaRenderer = ({
-  spec = JsonSchemaSpec.Draft_2020_12,
-  allowAdditionalProperties = false,
-}: JsonSchemaRendererOptions = {}): Renderer =>
-  Object.freeze({
-    transformer: astToJsonSchema({ spec, allowAdditionalProperties }),
-    fileExtension: ".schema.json",
-    resolveTypeParameters: true,
-  })

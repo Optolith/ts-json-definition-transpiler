@@ -7,6 +7,8 @@ import {
   DictionaryNode,
   Doc,
   EnumerationNode,
+  isReferenceNode,
+  isTokenNode,
   LiteralNode,
   NodeKind,
   RecordNode,
@@ -18,19 +20,16 @@ import {
   TupleNode,
   TypeParameterNode,
   UnionNode,
-  isReferenceNode,
-  isTokenNode,
-} from "../ast.js"
-import { AstTransformer, Renderer } from "../main.js"
+} from "../../ast.js"
 import {
   getRightmostQualifiedNameSegment,
   qualifiedNameToArray,
-} from "../utils/qualifiedName.js"
+} from "../../utils/qualifiedName.js"
 import {
   getAliasedImportName,
   getFullyQualifiedNameAsPath,
   getRelativeExternalPath,
-} from "../utils/references.js"
+} from "../../utils/references.js"
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
@@ -667,28 +666,21 @@ const definitionToMarkdown = (
   }
 }
 
-const astToMarkdown: AstTransformer = (file) => {
+export const transformAst = (ast: RootNode): string => {
   const ref =
-    file.jsDoc?.tags.main !== undefined
-      ? file.children.find(({ name }) => name === file.jsDoc?.tags.main)
+    ast.jsDoc?.tags.main !== undefined
+      ? ast.children.find(({ name }) => name === ast.jsDoc?.tags.main)
       : undefined
 
-  const definitions = file.children
+  const definitions = ast.children
     .map((definition, i) =>
-      definitionToMarkdown(definition.name, definition, file, i === 0)
+      definitionToMarkdown(definition.name, definition, ast, i === 0)
     )
     .flatMap(mergeParagraphs)
 
   return (
-    [docHeader(file, ref?.jsDoc), h(2, "Definitions"), ...definitions].join(
+    [docHeader(ast, ref?.jsDoc), h(2, "Definitions"), ...definitions].join(
       EOL + EOL
     ) + EOL
   )
 }
-
-export const markdownRenderer = (): Renderer =>
-  Object.freeze({
-    transformer: astToMarkdown,
-    fileExtension: ".md",
-    resolveTypeParameters: false,
-  })
