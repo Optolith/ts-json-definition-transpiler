@@ -5,6 +5,7 @@ export interface Annotated {
   title?: string
   description?: string
   default?: unknown
+  deprecated?: boolean
   readOnly?: boolean
 }
 

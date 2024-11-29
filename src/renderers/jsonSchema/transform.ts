@@ -32,9 +32,28 @@ import {
 
 const IGNORE_ENV = "json-schema"
 
-const toAnnotations = (jsDoc: Doc | undefined) => ({
+const renderDeprecatedAnnotation = (
+  jsDoc: Doc | undefined,
+  options: Required<JsonSchemaRendererOptions>
+) => {
+  switch (options.spec) {
+    case JsonSchemaSpec.Draft_07:
+      return undefined
+    case JsonSchemaSpec.Draft_2019_09:
+    case JsonSchemaSpec.Draft_2020_12:
+      return (jsDoc?.tags.deprecated?.length ?? 0) > 0
+    default:
+      return assertExhaustive(options.spec, "invalid spec")
+  }
+}
+
+const toAnnotations = (
+  jsDoc: Doc | undefined,
+  options: Required<JsonSchemaRendererOptions>
+) => ({
   title: jsDoc?.tags.title,
   description: jsDoc?.comment,
+  deprecated: renderDeprecatedAnnotation(jsDoc, options),
 })
 
 const toDefault = (jsDoc: Doc | undefined) =>
@@ -101,7 +120,7 @@ const nodeToDefinition = (
   switch (node.kind) {
     case NodeKind.Record: {
       return {
-        ...toAnnotations(node.jsDoc),
+        ...toAnnotations(node.jsDoc, options),
         type: "object",
         ...toDefault(node.jsDoc),
         properties: Object.fromEntries(
@@ -125,7 +144,7 @@ const nodeToDefinition = (
     case NodeKind.Dictionary: {
       if (node.pattern !== undefined) {
         return {
-          ...toAnnotations(node.jsDoc),
+          ...toAnnotations(node.jsDoc, options),
           type: "object",
           ...toDefault(node.jsDoc),
           patternProperties: {
@@ -137,7 +156,7 @@ const nodeToDefinition = (
         }
       } else {
         return {
-          ...toAnnotations(node.jsDoc),
+          ...toAnnotations(node.jsDoc, options),
           type: "object",
           ...toDefault(node.jsDoc),
           additionalProperties: nodeToDefinition(node.children, file, options),
@@ -148,7 +167,7 @@ const nodeToDefinition = (
     }
     case NodeKind.Array: {
       return {
-        ...toAnnotations(node.jsDoc),
+        ...toAnnotations(node.jsDoc, options),
         type: "array",
         ...toDefault(node.jsDoc),
         items: nodeToDefinition(node.children, file, options),
@@ -161,7 +180,7 @@ const nodeToDefinition = (
         case JsonSchemaSpec.Draft_07:
         case JsonSchemaSpec.Draft_2019_09:
           return {
-            ...toAnnotations(node.jsDoc),
+            ...toAnnotations(node.jsDoc, options),
             type: "array",
             items: node.children.map((child) =>
               nodeToDefinition(child, file, options)
@@ -174,7 +193,7 @@ const nodeToDefinition = (
           }
         case JsonSchemaSpec.Draft_2020_12:
           return {
-            ...toAnnotations(node.jsDoc),
+            ...toAnnotations(node.jsDoc, options),
             type: "array",
             prefixItems: node.children.map((child) =>
               nodeToDefinition(child, file, options)
@@ -191,7 +210,7 @@ const nodeToDefinition = (
     }
     case NodeKind.Union: {
       return {
-        ...toAnnotations(node.jsDoc),
+        ...toAnnotations(node.jsDoc, options),
         oneOf: node.children.map((child) =>
           nodeToDefinition(child, file, options)
         ),
@@ -205,7 +224,7 @@ const nodeToDefinition = (
       )
 
       const base = {
-        ...toAnnotations(node.jsDoc),
+        ...toAnnotations(node.jsDoc, options),
         allOf,
         ...toDefault(node.jsDoc),
         ...(isReadOnly ? { readOnly: true } : undefined),
@@ -235,7 +254,7 @@ const nodeToDefinition = (
     }
     case NodeKind.Literal: {
       return {
-        ...toAnnotations(node.jsDoc),
+        ...toAnnotations(node.jsDoc, options),
         const: node.value,
         ...toDefault(node.jsDoc),
         ...(isReadOnly ? { readOnly: true } : undefined),
@@ -250,7 +269,7 @@ const nodeToDefinition = (
       const qualifiedName = getFullyQualifiedNameAsPath(node, file)
 
       return {
-        ...toAnnotations(node.jsDoc),
+        ...toAnnotations(node.jsDoc, options),
         $ref: `${externalFilePath}#/${defsKey(spec)}/${
           getAliasedImportName(node, file) ?? qualifiedName
         }`,
@@ -262,7 +281,7 @@ const nodeToDefinition = (
       switch (node.token) {
         case TokenKind.Number: {
           return {
-            ...toAnnotations(node.jsDoc),
+            ...toAnnotations(node.jsDoc, options),
             type: node.jsDoc?.tags.integer ? "integer" : "number",
             ...toDefault(node.jsDoc),
             ...toConstraints(node.jsDoc, "number"),
@@ -272,7 +291,7 @@ const nodeToDefinition = (
 
         case TokenKind.String: {
           return {
-            ...toAnnotations(node.jsDoc),
+            ...toAnnotations(node.jsDoc, options),
             type: "string",
             ...toDefault(node.jsDoc),
             ...toConstraints(node.jsDoc, "string"),
@@ -282,7 +301,7 @@ const nodeToDefinition = (
 
         case TokenKind.Boolean: {
           return {
-            ...toAnnotations(node.jsDoc),
+            ...toAnnotations(node.jsDoc, options),
             type: "boolean",
             ...toDefault(node.jsDoc),
             ...(isReadOnly ? { readOnly: true } : undefined),
@@ -316,7 +335,7 @@ const statementToDefinition = (
       return ignoreNode(node, IGNORE_ENV)
         ? undefined
         : {
-            ...toAnnotations(node.jsDoc),
+            ...toAnnotations(node.jsDoc, options),
             enum: node.children.map(({ value }) => value),
             ...toDefault(node.jsDoc),
             ...(isReadOnly ? { readOnly: true } : undefined),

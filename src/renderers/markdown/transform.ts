@@ -477,7 +477,11 @@ const strictObjectBody = (
 
         return [
           title,
-          member.jsDoc?.comment?.split("\n\n")[0]?.replaceAll("\n", " ") ?? "",
+          (member.jsDoc?.tags.deprecated !== undefined
+            ? "**Deprecated** "
+            : "") +
+            (member.jsDoc?.comment?.split("\n\n")[0]?.replaceAll("\n", " ") ??
+              ""),
           a("See details", anchorUrl(propertyPropertyPath)),
         ].join(" | ")
       })
