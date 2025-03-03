@@ -38,14 +38,14 @@
   "author": "Lukas Obermann",
   "license": "MPL-2.0",
   "dependencies": {
-    "@optolith/helpers": "^0.2.1",
-    "typescript": "^5.6.3"
+    "@optolith/helpers": "^0.2.2",
+    "typescript": "^5.8.2"
   },
   "devDependencies": {
-    "@types/node": "^22.9.0",
+    "@types/node": "^22.13.8",
     "commit-and-tag-version": "^12.5.0",
-    "glob": "^11.0.0",
-    "tsx": "^4.19.2"
+    "glob": "^11.0.1",
+    "tsx": "^4.19.3"
   },
   "repository": "github:Optolith/ts-json-definition-transpiler",
   "bugs": {
