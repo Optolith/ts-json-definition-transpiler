@@ -1,5 +1,5 @@
 {
-  "name": "optolith-tsjsonschemamd",
+  "name": "@optolith/ts-json-definition-transpiler",
   "version": "0.11.2",
   "description": "A tool for generating both JSON Schema definitions and Markdown documentation from TypeScript files.",
   "keywords": [
@@ -47,9 +47,9 @@
     "glob": "^11.0.0",
     "tsx": "^4.19.2"
   },
-  "repository": "github:elyukai/optolith-tsjsonschemamd",
+  "repository": "github:Optolith/ts-json-definition-transpiler",
   "bugs": {
-    "url": "https://github.com/elyukai/optolith-tsjsonschemamd/issues"
+    "url": "https://github.com/Optolith/ts-json-definition-transpiler/issues"
   },
   "type": "module"
 }
