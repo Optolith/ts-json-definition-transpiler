@@ -1,6 +1,6 @@
 {
   "name": "@optolith/ts-json-definition-transpiler",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "description": "A tool for generating both JSON Schema definitions and Markdown documentation from TypeScript files.",
   "keywords": [
     "typescript",

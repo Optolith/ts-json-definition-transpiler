@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.11.3](https://github.com/Optolith/ts-json-definition-transpiler/compare/v0.11.2...v0.11.3) (2025-03-03)
+
+
+### Features
+
+* add deprecated annotations to markdown and json schema renderers ([5c6ecfd](https://github.com/Optolith/ts-json-definition-transpiler/commit/5c6ecfd638995cf5fe25e8cfd53513d452b12f9c))
+
+
+### Bug Fixes
+
+* swift renderer should use operating system-specific end-of-line markers ([5274739](https://github.com/Optolith/ts-json-definition-transpiler/commit/52747393f04d20698ab79808cd2d0c84d17cb4ac))
+
 ## [0.11.2](https://github.com/elyukai/optolith-tsjsonschemamd/compare/v0.11.1...v0.11.2) (2024-11-27)
 
 
